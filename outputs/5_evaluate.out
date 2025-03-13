@@ -1,0 +1,51 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:03<00:09,  3.18s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:06<00:06,  3.38s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:10<00:03,  3.36s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:10<00:00,  2.25s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:10<00:00,  2.65s/it]
+Traceback (most recent call last):
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/core/indexes/base.py", line 3805, in get_loc
+    return self._engine.get_loc(casted_key)
+  File "index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7081, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7089, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'response'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/ezswitch/src/evaluate_generation.py", line 207, in <module>
+    main()
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/ezswitch/src/evaluate_generation.py", line 198, in main
+    for response in df['response']:
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/core/frame.py", line 4102, in __getitem__
+    indexer = self.columns.get_loc(key)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    raise KeyError(key) from err
+KeyError: 'response'
+
+JOB STATISTICS
+==============
+Job ID: 10232454
+Cluster: snellius
+User/Group: tchakravorty/tchakravorty
+State: FAILED (exit code 1)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:01:20
+CPU Efficiency: 12.70% of 00:10:30 core-walltime
+Job Wall-clock time: 00:00:35
+Memory Utilized: 2.25 MB
+Memory Efficiency: 0.00% of 120.00 GB
