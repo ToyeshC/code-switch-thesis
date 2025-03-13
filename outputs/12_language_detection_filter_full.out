@@ -1,0 +1,64 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+Loading FastText model from lid.176.bin...
+Loaded 235892 English words from NLTK
+Reading input file: data/output/generated_sentences.csv
+Processing sentences and counting words by language...
+Warning: 'generated' column not found. Looking for text columns...
+Found potential text columns: ['मैं तुम गंदे गेस को नफरत करता हूँ, मैं तुम सबको यहाँ मार डालूँगा,']
+Processing the first text column: मैं तुम गंदे गेस को नफरत करता हूँ, मैं तुम सबको यहाँ मार डालूँगा,
+  0%|          | 0/16271 [00:00<?, ?it/s]  1%|          | 145/16271 [00:00<00:11, 1445.66it/s]  2%|▏         | 290/16271 [00:00<00:11, 1404.77it/s]  3%|▎         | 437/16271 [00:00<00:11, 1431.67it/s]  4%|▎         | 581/16271 [00:00<00:11, 1330.31it/s]  4%|▍         | 726/16271 [00:00<00:11, 1370.03it/s]  5%|▌         | 874/16271 [00:00<00:10, 1404.53it/s]  6%|▋         | 1025/16271 [00:00<00:10, 1436.18it/s]  7%|▋         | 1190/16271 [00:00<00:10, 1502.19it/s]  8%|▊         | 1346/16271 [00:00<00:09, 1519.66it/s]  9%|▉         | 1511/16271 [00:01<00:09, 1558.55it/s] 10%|█         | 1676/16271 [00:01<00:09, 1585.65it/s] 11%|█▏        | 1837/16271 [00:01<00:09, 1590.59it/s] 12%|█▏        | 2001/16271 [00:01<00:08, 1604.57it/s] 13%|█▎        | 2162/16271 [00:01<00:08, 1585.71it/s] 14%|█▍        | 2321/16271 [00:01<00:08, 1580.63it/s] 15%|█▌        | 2480/16271 [00:01<00:08, 1562.61it/s] 16%|█▌        | 2637/16271 [00:01<00:08, 1529.53it/s] 17%|█▋        | 2796/16271 [00:01<00:08, 1546.24it/s] 18%|█▊        | 2956/16271 [00:01<00:08, 1561.82it/s] 19%|█▉        | 3113/16271 [00:02<00:08, 1563.73it/s] 20%|██        | 3271/16271 [00:02<00:08, 1568.15it/s] 21%|██        | 3429/16271 [00:02<00:08, 1568.93it/s] 22%|██▏       | 3586/16271 [00:02<00:08, 1561.39it/s] 23%|██▎       | 3743/16271 [00:02<00:08, 1550.86it/s] 24%|██▍       | 3899/16271 [00:02<00:07, 1549.00it/s] 25%|██▍       | 4054/16271 [00:02<00:07, 1548.34it/s] 26%|██▌       | 4209/16271 [00:02<00:07, 1535.68it/s] 27%|██▋       | 4369/16271 [00:02<00:07, 1552.22it/s] 28%|██▊       | 4525/16271 [00:02<00:07, 1535.62it/s] 29%|██▉       | 4679/16271 [00:03<00:07, 1534.21it/s] 30%|██▉       | 4846/16271 [00:03<00:07, 1572.39it/s] 31%|███       | 5012/16271 [00:03<00:07, 1596.79it/s] 32%|███▏      | 5172/16271 [00:03<00:07, 1546.33it/s] 33%|███▎      | 5327/16271 [00:03<00:07, 1481.03it/s] 34%|███▎      | 5476/16271 [00:03<00:07, 1450.85it/s] 35%|███▍      | 5622/16271 [00:03<00:07, 1435.22it/s] 35%|███▌      | 5767/16271 [00:03<00:07, 1438.19it/s] 36%|███▋      | 5915/16271 [00:03<00:07, 1449.53it/s] 37%|███▋      | 6061/16271 [00:04<00:07, 1450.71it/s] 38%|███▊      | 6210/16271 [00:04<00:06, 1461.80it/s] 39%|███▉      | 6369/16271 [00:04<00:06, 1496.52it/s] 40%|████      | 6525/16271 [00:04<00:06, 1513.65it/s] 41%|████      | 6680/16271 [00:04<00:06, 1524.16it/s] 42%|████▏     | 6840/16271 [00:04<00:06, 1546.04it/s] 43%|████▎     | 6995/16271 [00:04<00:05, 1547.06it/s] 44%|████▍     | 7150/16271 [00:04<00:05, 1547.03it/s] 45%|████▍     | 7305/16271 [00:04<00:05, 1546.04it/s] 46%|████▌     | 7460/16271 [00:04<00:05, 1523.64it/s] 47%|████▋     | 7613/16271 [00:05<00:05, 1512.46it/s] 48%|████▊     | 7765/16271 [00:05<00:05, 1505.22it/s] 49%|████▊     | 7925/16271 [00:05<00:05, 1530.86it/s] 50%|████▉     | 8084/16271 [00:05<00:05, 1546.90it/s] 51%|█████     | 8239/16271 [00:05<00:05, 1544.06it/s] 52%|█████▏    | 8398/16271 [00:05<00:05, 1557.36it/s] 53%|█████▎    | 8554/16271 [00:05<00:04, 1551.23it/s] 54%|█████▎    | 8710/16271 [00:05<00:04, 1543.64it/s] 55%|█████▍    | 8868/16271 [00:05<00:04, 1553.17it/s] 55%|█████▌    | 9026/16271 [00:05<00:04, 1558.66it/s] 56%|█████▋    | 9182/16271 [00:06<00:04, 1546.69it/s] 57%|█████▋    | 9337/16271 [00:06<00:04, 1546.58it/s] 58%|█████▊    | 9493/16271 [00:06<00:04, 1547.95it/s] 59%|█████▉    | 9648/16271 [00:06<00:04, 1539.21it/s] 60%|██████    | 9802/16271 [00:06<00:04, 1537.30it/s] 61%|██████    | 9962/16271 [00:06<00:04, 1555.29it/s] 62%|██████▏   | 10122/16271 [00:06<00:03, 1567.08it/s] 63%|██████▎   | 10280/16271 [00:06<00:03, 1569.53it/s] 64%|██████▍   | 10444/16271 [00:06<00:03, 1588.18it/s] 65%|██████▌   | 10609/16271 [00:06<00:03, 1605.63it/s] 66%|██████▌   | 10770/16271 [00:07<00:03, 1595.12it/s] 67%|██████▋   | 10937/16271 [00:07<00:03, 1616.75it/s] 68%|██████▊   | 11103/16271 [00:07<00:03, 1628.07it/s] 69%|██████▉   | 11266/16271 [00:07<00:03, 1605.64it/s] 70%|███████   | 11427/16271 [00:07<00:03, 1537.17it/s] 71%|███████   | 11582/16271 [00:07<00:03, 1517.06it/s] 72%|███████▏  | 11735/16271 [00:07<00:03, 1497.56it/s] 73%|███████▎  | 11889/16271 [00:07<00:02, 1509.44it/s] 74%|███████▍  | 12051/16271 [00:07<00:02, 1539.57it/s] 75%|███████▌  | 12210/16271 [00:07<00:02, 1552.34it/s] 76%|███████▌  | 12370/16271 [00:08<00:02, 1565.76it/s] 77%|███████▋  | 12533/16271 [00:08<00:02, 1584.79it/s] 78%|███████▊  | 12695/16271 [00:08<00:02, 1593.83it/s] 79%|███████▉  | 12856/16271 [00:08<00:02, 1598.34it/s] 80%|████████  | 13021/16271 [00:08<00:02, 1613.37it/s] 81%|████████  | 13183/16271 [00:08<00:01, 1610.39it/s] 82%|████████▏ | 13345/16271 [00:08<00:01, 1613.03it/s] 83%|████████▎ | 13507/16271 [00:08<00:01, 1602.85it/s] 84%|████████▍ | 13672/16271 [00:08<00:01, 1615.54it/s] 85%|████████▌ | 13834/16271 [00:08<00:01, 1597.18it/s] 86%|████████▌ | 14003/16271 [00:09<00:01, 1621.32it/s] 87%|████████▋ | 14166/16271 [00:09<00:01, 1617.68it/s] 88%|████████▊ | 14332/16271 [00:09<00:01, 1628.92it/s] 89%|████████▉ | 14496/16271 [00:09<00:01, 1631.90it/s] 90%|█████████ | 14662/16271 [00:09<00:00, 1640.00it/s] 91%|█████████ | 14827/16271 [00:09<00:00, 1622.40it/s] 92%|█████████▏| 14990/16271 [00:09<00:00, 1621.00it/s] 93%|█████████▎| 15153/16271 [00:09<00:00, 1609.16it/s] 94%|█████████▍| 15320/16271 [00:09<00:00, 1624.74it/s] 95%|█████████▌| 15483/16271 [00:09<00:00, 1626.10it/s] 96%|█████████▌| 15646/16271 [00:10<00:00, 1626.61it/s] 97%|█████████▋| 15809/16271 [00:10<00:00, 1611.58it/s] 98%|█████████▊| 15976/16271 [00:10<00:00, 1628.10it/s] 99%|█████████▉| 16145/16271 [00:10<00:00, 1646.03it/s]100%|██████████| 16271/16271 [00:10<00:00, 1555.33it/s]
+Saving processed data to data/output/language_detection_filter_full.csv
+Filtering sentences based on code-switching criteria...
+Saving filtered data to data/output/generated_sentences_filtered.csv
+
+===== Summary Statistics for All Sentences =====
+Total sentences processed: 16271
+Average Devanagari Hindi words per sentence: 1.41
+Average Romanized Hindi words per sentence: 7.37
+Average Total Hindi words per sentence: 8.78
+Average English words per sentence: 10.27
+Sentences with both Hindi and English: 1395
+Sentences with Romanized Hindi and English: 13138
+
+===== Summary Statistics for Filtered Sentences =====
+Total sentences after filtering: 11174
+Sentences removed: 5097 (31.33%)
+Average Devanagari Hindi words per sentence: 0.97
+Average Romanized Hindi words per sentence: 9.36
+Average Total Hindi words per sentence: 10.34
+Average English words per sentence: 8.38
+
+===== Breakdown of Filtered Sentences =====
+Sentences with Devanagari Hindi + English (no Romanized): 511 (4.57%)
+Sentences with Romanized Hindi + English (no Devanagari): 9779 (87.52%)
+Sentences with both Hindi types + English: 884 (7.91%)
+Processing complete!
+
+JOB STATISTICS
+==============
+Job ID: 10480065
+Cluster: snellius
+User/Group: tchakravorty/tchakravorty
+State: RUNNING
+Nodes: 1
+Cores per node: 32
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 00:14:56 core-walltime
+Job Wall-clock time: 00:00:28
+Memory Utilized: 0.00 MB (estimated maximum)
+Memory Efficiency: 0.00% of 56.00 GB (1.75 GB/core)
+WARNING: Efficiency statistics may be misleading for RUNNING jobs.

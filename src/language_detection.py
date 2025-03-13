@@ -11,6 +11,7 @@ def main():
     """
     Process a CSV file containing generated sentences, detect languages using FastText,
     and count Hindi and English words in each sentence with improved detection for Romanized Hindi.
+    Then filter out sentences that don't meet code-switching criteria.
     """
     parser = argparse.ArgumentParser(
         description="Detect languages and count Hindi/English words in generated sentences with Romanized Hindi support"
@@ -28,6 +29,12 @@ def main():
         help="Path to save the processed CSV file (defaults to input_file_processed.csv)",
     )
     parser.add_argument(
+        "--filtered_output_file",
+        type=str,
+        default=None,
+        help="Path to save the filtered CSV file (defaults to input_file_filtered.csv)",
+    )
+    parser.add_argument(
         "--fasttext_model",
         type=str,
         default="lid.176.bin",
@@ -39,12 +46,22 @@ def main():
         default=None,
         help="Path to a file containing common Romanized Hindi words (one per line)",
     )
+    parser.add_argument(
+        "--romanized_threshold",
+        type=float,
+        default=0.45,
+        help="Threshold for romanized Hindi percentage (default: 0.45)",
+    )
     args = parser.parse_args()
 
-    # Set default output file if not provided
+    # Set default output files if not provided
     if args.output_file is None:
         base_name = os.path.splitext(args.input_file)[0]
         args.output_file = f"{base_name}_processed.csv"
+    
+    if args.filtered_output_file is None:
+        base_name = os.path.splitext(args.input_file)[0]
+        args.filtered_output_file = f"{base_name}_filtered.csv"
 
     # Load the FastText language identification model
     print(f"Loading FastText model from {args.fasttext_model}...")
@@ -84,7 +101,7 @@ def main():
         'theek', 'hoon', 'hu', 'ho', 'hai', 'hain', 'tha', 'thi', 'the', 'thi',
         'raha', 'rahi', 'rahe', 'rahenge', 'rahegi', 'rahega', 'gaya', 'gayi', 'gaye',
         'aaya', 'aayi', 'aaye', 'jaayega', 'jaayegi', 'jaayenge', 'karta', 'karti', 'karte',
-        'karegi', 'karega', 'karenge', 'kiya', 'kiye', 'kiyi', 'kijiye', 'karo', 'kariye',
+        'karegi', 'karega', 'karenge',
         'haan', 'nahin', 'nahi', 'bilkul', 'zaroor', 'kabhi', 'humesha', 'kabhi', 'nahi',
         'kya', 'kyun', 'kaise', 'kahan', 'kab', 'kaun', 'kitna', 'kitni', 'kitne',
         'mujhe', 'tumhe', 'use', 'hume', 'aapko', 'unhe', 'inhe', 'mujhko', 'tumko',
@@ -107,7 +124,7 @@ def main():
         'chai', 'coffee', 'paani', 'doodh', 'lassi', 'sharbat', 'ras', 'juice',
         'kitaab', 'pustak', 'kalam', 'pen', 'pencil', 'kagaz', 'paper', 'daftar',
         'vidyalaya', 'school', 'college', 'vishwavidyalaya', 'university', 'shiksha',
-        'padhai', 'likhna', 'padhna', 'bolna', 'sunna', 'dekhna', 'samajhna',
+        'padhai', 'likhna', 'padhna', 'bolna', 'sunna', 'dekhna',
         'karna', 'hona', 'jana', 'aana', 'khana', 'peena', 'sona', 'uthna',
         'baithna', 'khelna', 'hasna', 'rona', 'muskurana', 'nachna', 'gaana',
         'paisa', 'rupaya', 'dhan', 'sampatti', 'ameer', 'gareeb', 'dhani', 'nirdhan',
@@ -131,7 +148,7 @@ def main():
         'ikhattar', 'bahattar', 'tihattar', 'chauhattar', 'pachhattar', 'chhihattar',
         'sathattar', 'athattar', 'unaasi', 'assi', 'ikyaasi', 'bayaasi', 'tiraasi',
         'chauraasi', 'pachaasi', 'chhiyaasi', 'sataasi', 'athaasi', 'navaasi', 'nabbe',
-        'ikyaanve', 'baanve', 'tiraanve', 'chauraanve', 'pachhaanve', 'chhiyaanve',
+        'baanve', 'tiraanve', 'chauraanve', 'pachhaanve', 'chhiyaanve',
         'sattaanve', 'atthaanve', 'ninyaanve', 'sau'
     }
 
@@ -170,7 +187,7 @@ def main():
     # Initialize new columns for word counts
     df['hindi_word_count'] = 0
     df['english_word_count'] = 0
-    df['romanized_hindi_count'] = 0  # New column for romanized Hindi
+    df['romanized_hindi_count'] = 0
     
     # Process each sentence
     print("Processing sentences and counting words by language...")
@@ -219,41 +236,93 @@ def main():
         return hindi_count, english_count, romanized_hindi_count
     
     # Apply the processing function to the appropriate column
+    text_column = None
     if 'generated' in df.columns:
-        # Use tqdm for progress tracking
-        for i in tqdm(range(len(df))):
-            hindi_count, english_count, romanized_hindi_count = process_sentence(df.loc[i, 'generated'])
-            df.loc[i, 'hindi_word_count'] = hindi_count
-            df.loc[i, 'english_word_count'] = english_count
-            df.loc[i, 'romanized_hindi_count'] = romanized_hindi_count
+        text_column = 'generated'
     else:
         print("Warning: 'generated' column not found. Looking for text columns...")
         # Try to find a column that might contain sentences
         text_columns = [col for col in df.columns if df[col].dtype == 'object']
         if text_columns:
             print(f"Found potential text columns: {text_columns}")
-            print(f"Processing the first text column: {text_columns[0]}")
-            for i in tqdm(range(len(df))):
-                hindi_count, english_count, romanized_hindi_count = process_sentence(df.loc[i, text_columns[0]])
-                df.loc[i, 'hindi_word_count'] = hindi_count
-                df.loc[i, 'english_word_count'] = english_count
-                df.loc[i, 'romanized_hindi_count'] = romanized_hindi_count
+            text_column = text_columns[0]
+            print(f"Processing the first text column: {text_column}")
+    
+    if text_column:
+        # Use tqdm for progress tracking
+        for i in tqdm(range(len(df))):
+            hindi_count, english_count, romanized_hindi_count = process_sentence(df.loc[i, text_column])
+            df.loc[i, 'hindi_word_count'] = hindi_count
+            df.loc[i, 'english_word_count'] = english_count
+            df.loc[i, 'romanized_hindi_count'] = romanized_hindi_count
+    else:
+        print("Error: No suitable text column found for processing.")
+        return
     
     # Calculate total Hindi count (Devanagari + Romanized)
     df['total_hindi_count'] = df['hindi_word_count'] + df['romanized_hindi_count']
+    
+    # Calculate percentages for filtering
+    df['total_words'] = df['hindi_word_count'] + df['romanized_hindi_count'] + df['english_word_count']
+    df['romanized_hindi_percent'] = df.apply(
+        lambda row: (row['romanized_hindi_count'] / row['english_word_count'] * 100) 
+        if row['english_word_count'] > 0 else 0, 
+        axis=1
+    )
     
     # Save the processed DataFrame to a new CSV file
     print(f"Saving processed data to {args.output_file}")
     df.to_csv(args.output_file, index=False)
     
+    # Filter sentences based on criteria
+    print("Filtering sentences based on code-switching criteria...")
+    
+    # Create a filter mask based on the criteria
+    filter_mask = (
+        # Keep sentences with both Hindi and English
+        ((df['hindi_word_count'] > 0) & (df['english_word_count'] > 0)) |
+        
+        # Keep sentences with Romanized Hindi and English if romanized percentage is high enough
+        ((df['hindi_word_count'] == 0) & 
+         (df['romanized_hindi_count'] > 0) & 
+         (df['english_word_count'] > 0) & 
+         (df['romanized_hindi_percent'] >= args.romanized_threshold * 100))
+    )
+    
+    # Apply the filter
+    filtered_df = df[filter_mask].reset_index(drop=True)
+    
+    # Save the filtered DataFrame
+    print(f"Saving filtered data to {args.filtered_output_file}")
+    filtered_df.to_csv(args.filtered_output_file, index=False)
+    
     # Print summary statistics
-    print("\nSummary Statistics:")
+    print("\n===== Summary Statistics for All Sentences =====")
     print(f"Total sentences processed: {len(df)}")
     print(f"Average Devanagari Hindi words per sentence: {df['hindi_word_count'].mean():.2f}")
     print(f"Average Romanized Hindi words per sentence: {df['romanized_hindi_count'].mean():.2f}")
     print(f"Average Total Hindi words per sentence: {df['total_hindi_count'].mean():.2f}")
     print(f"Average English words per sentence: {df['english_word_count'].mean():.2f}")
-    print(f"Sentences with both Hindi and English: {((df['total_hindi_count'] > 0) & (df['english_word_count'] > 0)).sum()}")
+    print(f"Sentences with both Hindi and English: {((df['hindi_word_count'] > 0) & (df['english_word_count'] > 0)).sum()}")
+    print(f"Sentences with Romanized Hindi and English: {((df['hindi_word_count'] == 0) & (df['romanized_hindi_count'] > 0) & (df['english_word_count'] > 0)).sum()}")
+    
+    print("\n===== Summary Statistics for Filtered Sentences =====")
+    print(f"Total sentences after filtering: {len(filtered_df)}")
+    print(f"Sentences removed: {len(df) - len(filtered_df)} ({(len(df) - len(filtered_df)) / len(df) * 100:.2f}%)")
+    print(f"Average Devanagari Hindi words per sentence: {filtered_df['hindi_word_count'].mean():.2f}")
+    print(f"Average Romanized Hindi words per sentence: {filtered_df['romanized_hindi_count'].mean():.2f}")
+    print(f"Average Total Hindi words per sentence: {filtered_df['total_hindi_count'].mean():.2f}")
+    print(f"Average English words per sentence: {filtered_df['english_word_count'].mean():.2f}")
+    
+    # Breakdown of filtered sentences
+    only_devanagari = ((filtered_df['hindi_word_count'] > 0) & (filtered_df['romanized_hindi_count'] == 0) & (filtered_df['english_word_count'] > 0)).sum()
+    only_romanized = ((filtered_df['hindi_word_count'] == 0) & (filtered_df['romanized_hindi_count'] > 0) & (filtered_df['english_word_count'] > 0)).sum()
+    both_hindi_types = ((filtered_df['hindi_word_count'] > 0) & (filtered_df['romanized_hindi_count'] > 0) & (filtered_df['english_word_count'] > 0)).sum()
+    
+    print("\n===== Breakdown of Filtered Sentences =====")
+    print(f"Sentences with Devanagari Hindi + English (no Romanized): {only_devanagari} ({only_devanagari/len(filtered_df)*100:.2f}%)")
+    print(f"Sentences with Romanized Hindi + English (no Devanagari): {only_romanized} ({only_romanized/len(filtered_df)*100:.2f}%)")
+    print(f"Sentences with both Hindi types + English: {both_hindi_types} ({both_hindi_types/len(filtered_df)*100:.2f}%)")
     
     print("Processing complete!")
 
