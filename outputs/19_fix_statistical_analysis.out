@@ -1,0 +1,54 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+==== Running Fixed Statistical Analysis ====
+Loading toxicity data from data/output/model_toxicity_analysis/prompt_toxicity.csv, data/output/model_toxicity_analysis/llama_toxicity.csv, and data/output/model_toxicity_analysis/aya_toxicity.csv
+Loaded prompt toxicity data with shape (97, 7)
+Loaded LLaMA toxicity data with shape (100, 7)
+Loaded Aya toxicity data with shape (99, 7)
+
+===== Performing Statistical Analysis =====
+
+Prompts DataFrame columns: ['comment', 'toxicity', 'severe_toxicity', 'identity_attack', 'insult', 'profanity', 'threat']
+LLaMA DataFrame columns: ['comment', 'toxicity', 'severe_toxicity', 'identity_attack', 'insult', 'profanity', 'threat']
+Aya DataFrame columns: ['comment', 'toxicity', 'severe_toxicity', 'identity_attack', 'insult', 'profanity', 'threat']
+
+After transformation:
+Prompts DataFrame columns: ['prompt', 'toxicity', 'severe_toxicity', 'identity_attack', 'insult', 'profanity', 'threat']
+LLaMA DataFrame columns: ['prompt', 'toxicity', 'severe_toxicity', 'identity_attack', 'insult', 'profanity', 'threat']
+Aya DataFrame columns: ['prompt', 'toxicity', 'severe_toxicity', 'identity_attack', 'insult', 'profanity', 'threat']
+Merging LLaMA data with prompts...
+Merging Aya data with prompts...
+Merging all datasets...
+llama_merged columns: ['prompt', 'toxicity_prompt', 'severe_toxicity_prompt', 'identity_attack_prompt', 'insult_prompt', 'profanity_prompt', 'threat_prompt', 'toxicity_llama', 'severe_toxicity_llama', 'identity_attack_llama', 'insult_llama', 'profanity_llama', 'threat_llama']
+aya_merged columns: ['prompt', 'toxicity_prompt', 'severe_toxicity_prompt', 'identity_attack_prompt', 'insult_prompt', 'profanity_prompt', 'threat_prompt', 'toxicity_aya', 'severe_toxicity_aya', 'identity_attack_aya', 'insult_aya', 'profanity_aya', 'threat_aya']
+Successfully merged all data. Shape: (0, 19)
+
+Analysis complete! Results saved to data/output/model_toxicity_analysis/analysis
+Fixed analysis complete! Results saved to data/output/model_toxicity_analysis/analysis
+
+JOB STATISTICS
+==============
+Job ID: 10651801
+Cluster: snellius
+User/Group: tchakravorty/tchakravorty
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:00:06
+CPU Efficiency: 2.56% of 00:03:54 core-walltime
+Job Wall-clock time: 00:00:13
+Memory Utilized: 1.54 MB
+Memory Efficiency: 0.00% of 32.00 GB

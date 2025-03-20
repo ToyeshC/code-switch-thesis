@@ -1,0 +1,150 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+==== Running Model Toxicity Analysis ====
+Loading toxicity data...
+Prompt data shape: (97, 7)
+LLaMA data shape: (100, 7)
+Aya data shape: (99, 7)
+
+=== Performing Paired Comparisons Between Prompts and Models ===
+
+Analyzing metric: toxicity
+  Paired samples - Prompt vs LLaMA: 97, Prompt vs Aya: 97
+  Prompt vs LLaMA t-test: t=2.5843, p=0.0113
+  Prompt vs Aya t-test: t=1.3828, p=0.1699
+  Prompt vs LLaMA Wilcoxon: W=1609.0000, p=0.0086
+  Prompt vs Aya Wilcoxon: W=1907.0000, p=0.1662
+  Effect sizes - LLaMA: 0.3268, Aya: 0.1828
+
+Analyzing metric: severe_toxicity
+  Paired samples - Prompt vs LLaMA: 97, Prompt vs Aya: 97
+  Prompt vs LLaMA t-test: t=-0.2859, p=0.7756
+  Prompt vs Aya t-test: t=-0.0310, p=0.9753
+  Prompt vs LLaMA Wilcoxon: W=2301.0000, p=0.9214
+  Prompt vs Aya Wilcoxon: W=2274.0000, p=0.9822
+  Effect sizes - LLaMA: -0.0357, Aya: -0.0040
+
+Analyzing metric: identity_attack
+  Paired samples - Prompt vs LLaMA: 97, Prompt vs Aya: 97
+  Prompt vs LLaMA t-test: t=-0.3587, p=0.7206
+  Prompt vs Aya t-test: t=-0.5258, p=0.6002
+  Prompt vs LLaMA Wilcoxon: W=2237.0000, p=0.6157
+  Prompt vs Aya Wilcoxon: W=2157.0000, p=0.6480
+  Effect sizes - LLaMA: -0.0429, Aya: -0.0604
+
+Analyzing metric: insult
+  Paired samples - Prompt vs LLaMA: 97, Prompt vs Aya: 97
+  Prompt vs LLaMA t-test: t=1.3854, p=0.1691
+  Prompt vs Aya t-test: t=1.0502, p=0.2962
+  Prompt vs LLaMA Wilcoxon: W=1958.0000, p=0.1763
+  Prompt vs Aya Wilcoxon: W=1953.0000, p=0.2248
+  Effect sizes - LLaMA: 0.1763, Aya: 0.1383
+
+Analyzing metric: profanity
+  Paired samples - Prompt vs LLaMA: 97, Prompt vs Aya: 97
+  Prompt vs LLaMA t-test: t=1.0150, p=0.3127
+  Prompt vs Aya t-test: t=0.9279, p=0.3558
+  Prompt vs LLaMA Wilcoxon: W=2084.0000, p=0.2926
+  Prompt vs Aya Wilcoxon: W=2116.0000, p=0.3486
+  Effect sizes - LLaMA: 0.1244, Aya: 0.1190
+
+Analyzing metric: threat
+  Paired samples - Prompt vs LLaMA: 97, Prompt vs Aya: 97
+  Prompt vs LLaMA t-test: t=0.0981, p=0.9221
+  Prompt vs Aya t-test: t=-0.0485, p=0.9615
+  Prompt vs LLaMA Wilcoxon: W=2177.0000, p=0.5811
+  Prompt vs Aya Wilcoxon: W=2279.0000, p=0.7257
+  Effect sizes - LLaMA: 0.0110, Aya: -0.0060
+Saved prompt vs models comparison to data/output/model_toxicity_analysis/analysis/prompt_vs_models_stats.csv
+
+=== Comparing LLaMA vs Aya ===
+
+Comparing models for metric: toxicity
+  LLaMA mean: 0.4911, Aya mean: 0.5305
+  T-test p-value: 0.1009
+  Wilcoxon p-value: 0.019811338217251184
+  Effect size: -0.1338
+
+Comparing models for metric: severe_toxicity
+  LLaMA mean: 0.2441, Aya mean: 0.2324
+  T-test p-value: 0.5317
+  Wilcoxon p-value: 0.41203277597708265
+  Effect size: 0.0526
+
+Comparing models for metric: identity_attack
+  LLaMA mean: 0.2213, Aya mean: 0.2220
+  T-test p-value: 0.9653
+  Wilcoxon p-value: 0.9185021231726044
+  Effect size: -0.0033
+
+Comparing models for metric: insult
+  LLaMA mean: 0.4055, Aya mean: 0.4119
+  T-test p-value: 0.7608
+  Wilcoxon p-value: 0.2869457514559346
+  Effect size: -0.0236
+
+Comparing models for metric: profanity
+  LLaMA mean: 0.4149, Aya mean: 0.4123
+  T-test p-value: 0.9052
+  Wilcoxon p-value: 0.9069196480912856
+  Effect size: 0.0092
+
+Comparing models for metric: threat
+  LLaMA mean: 0.1617, Aya mean: 0.1628
+  T-test p-value: 0.9603
+  Wilcoxon p-value: 0.835776156904148
+  Effect size: -0.0048
+Saved LLaMA vs Aya comparison to data/output/model_toxicity_analysis/analysis/llama_vs_aya_stats.csv
+
+=== Creating Box Plots ===
+  Created box plot for toxicity
+  Created box plot for severe_toxicity
+  Created box plot for identity_attack
+  Created box plot for insult
+  Created box plot for profanity
+  Created box plot for threat
+
+=== Creating Correlation Matrices ===
+  Created correlation matrix and heatmap
+  Created correlation heatmap for prompt
+  Created correlation heatmap for llama
+  Created correlation heatmap for aya
+  Created Prompt vs LLaMA correlation heatmap
+  Created Prompt vs Aya correlation heatmap
+  Created LLaMA vs Aya correlation heatmap
+
+=== Analyzing Code-Switching Patterns ===
+Looking for code-switching patterns in model responses...
+Saved top toxicity differences to data/output/model_toxicity_analysis/analysis/top_toxicity_differences.csv
+Created scatter plot of prompt vs LLaMA toxicity
+
+Comprehensive analysis complete! Results saved to data/output/model_toxicity_analysis/analysis
+Analysis complete! Results saved to data/output/model_toxicity_analysis/analysis
+
+JOB STATISTICS
+==============
+Job ID: 10651903
+Cluster: snellius
+User/Group: tchakravorty/tchakravorty
+State: RUNNING
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 00:05:06 core-walltime
+Job Wall-clock time: 00:00:17
+Memory Utilized: 0.00 MB (estimated maximum)
+Memory Efficiency: 0.00% of 32.00 GB (32.00 GB/node)
+WARNING: Efficiency statistics may be misleading for RUNNING jobs.
