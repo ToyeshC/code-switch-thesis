@@ -3,10 +3,12 @@ import argparse
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
+from huggingface_hub import login
+import os
 
 def generate_continuations(input_file, output_file, model_name, max_new_tokens=50, temperature=0.7):
     """
-    Generate continuations for sentences in a CSV file using a Llama model.
+    Generate continuations for sentences in a CSV file using either Aya or Llama model.
     
     Args:
         input_file (str): Path to the input CSV file
@@ -15,12 +17,35 @@ def generate_continuations(input_file, output_file, model_name, max_new_tokens=5
         max_new_tokens (int): Maximum number of new tokens to generate
         temperature (float): Temperature for generation (higher = more creative)
     """
-    print(f"Loading model: {model_name}")
+    # Handle authentication for gated models
+    if "HUGGING_FACE_HUB_TOKEN" in os.environ:
+        print("Using Hugging Face token from environment variable")
+        login()  # This will use the token from the environment variable
+    else:
+        print("Warning: No Hugging Face token found in environment variables")
+        print("If the model is gated, this may fail. Set HUGGING_FACE_HUB_TOKEN if needed.")
+    
+    # Model-specific configurations
+    model_config = {}
+    if "aya" in model_name.lower():
+        print(f"Loading Aya model: {model_name}")
+        # Aya-specific configurations if needed
+    elif "llama" in model_name.lower():
+        print(f"Loading Llama model: {model_name}")
+        # Llama-specific configurations if needed
+    else:
+        print(f"Loading generic model: {model_name}")
+    
+    # Load tokenizer and model
+    print("Loading tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    
+    print("Loading model...")
     model = AutoModelForCausalLM.from_pretrained(
         model_name, 
         torch_dtype=torch.float16, 
-        device_map="auto"
+        device_map="auto",
+        **model_config
     )
     
     print(f"Reading input file: {input_file}")
@@ -85,13 +110,13 @@ def generate_continuations(input_file, output_file, model_name, max_new_tokens=5
     print("Done!")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate continuations for sentences using a Llama model")
+    parser = argparse.ArgumentParser(description="Generate continuations for sentences using Aya or Llama models")
     parser.add_argument("--input", required=True, help="Path to the input CSV file")
     parser.add_argument("--output", required=True, help="Path to save the output CSV file")
     parser.add_argument(
         "--model", 
-        default="meta-llama/Meta-Llama-3-8B-Instruct", 
-        help="Name of the Hugging Face model to use"
+        required=True,
+        help="Name of the Hugging Face model to use (e.g., 'CohereForAI/aya-23-8B' or 'meta-llama/Meta-Llama-3-8B-Instruct')"
     )
     parser.add_argument(
         "--max_tokens", 
@@ -105,8 +130,24 @@ if __name__ == "__main__":
         default=0.7, 
         help="Temperature for generation (higher = more creative)"
     )
+    parser.add_argument(
+        "--token_file",
+        type=str,
+        default=None,
+        help="Path to a file containing your Hugging Face token (optional)"
+    )
     
     args = parser.parse_args()
+    
+    # Handle token file if provided
+    if args.token_file:
+        try:
+            with open(args.token_file, 'r') as f:
+                token = f.read().strip()
+                os.environ["HUGGING_FACE_HUB_TOKEN"] = token
+                print(f"Loaded token from {args.token_file}")
+        except Exception as e:
+            print(f"Error loading token from file: {e}")
     
     generate_continuations(
         args.input, 
