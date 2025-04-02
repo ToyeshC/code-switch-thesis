@@ -1,0 +1,128 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+Comparing toxicity for Hindi prompts and LLaMA responses...
+Reading prompt toxicity file: data/output/toxicity_analysis/hindi_prompt_toxicity.csv
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 229, in <module>
+    main() 
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 226, in main
+    compare_toxicity(args.prompt_file, args.response_file, args.output_dir, args.model_name)
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 24, in compare_toxicity
+    prompt_df = pd.read_csv(prompt_file)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'data/output/toxicity_analysis/hindi_prompt_toxicity.csv'
+Comparing toxicity for Hindi prompts and Aya responses...
+Reading prompt toxicity file: data/output/toxicity_analysis/hindi_prompt_toxicity.csv
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 229, in <module>
+    main() 
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 226, in main
+    compare_toxicity(args.prompt_file, args.response_file, args.output_dir, args.model_name)
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 24, in compare_toxicity
+    prompt_df = pd.read_csv(prompt_file)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'data/output/toxicity_analysis/hindi_prompt_toxicity.csv'
+Comparing toxicity for English prompts and LLaMA responses...
+Reading prompt toxicity file: data/output/toxicity_analysis/english_prompt_toxicity.csv
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 229, in <module>
+    main() 
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 226, in main
+    compare_toxicity(args.prompt_file, args.response_file, args.output_dir, args.model_name)
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 24, in compare_toxicity
+    prompt_df = pd.read_csv(prompt_file)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'data/output/toxicity_analysis/english_prompt_toxicity.csv'
+Comparing toxicity for English prompts and Aya responses...
+Reading prompt toxicity file: data/output/toxicity_analysis/english_prompt_toxicity.csv
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 229, in <module>
+    main() 
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 226, in main
+    compare_toxicity(args.prompt_file, args.response_file, args.output_dir, args.model_name)
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 24, in compare_toxicity
+    prompt_df = pd.read_csv(prompt_file)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'data/output/toxicity_analysis/english_prompt_toxicity.csv'
+Generating enhanced visualizations...
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/scripts/06_visualization.py", line 32, in <module>
+    hindi_prompt_toxicity = pd.read_csv('data/output/toxicity_analysis/hindi_prompt_toxicity.csv')
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'data/output/toxicity_analysis/hindi_prompt_toxicity.csv'
+Loading datasets...
+Error in visualization generation: [Errno 2] No such file or directory: 'data/output/toxicity_analysis/hindi_prompt_toxicity.csv'
+Enhanced visualization complete. Results saved to data/output/visualizations
+Created additional visualizations comparing monolingual and code-switched content
+
+JOB STATISTICS
+==============
+Job ID: 10860664
+Cluster: snellius
+User/Group: tchakravorty/tchakravorty
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:00:26
+CPU Efficiency: 6.88% of 00:06:18 core-walltime
+Job Wall-clock time: 00:00:21
+Memory Utilized: 1.47 MB
+Memory Efficiency: 0.01% of 16.00 GB

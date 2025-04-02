@@ -1,0 +1,76 @@
+============================================================================================== 
+Warning! Mixing Conda and module environments may lead to corruption of the
+user environment. 
+We do not recommend users mixing those two environments unless absolutely
+necessary. Note that 
+SURF does not provide any support for Conda environment.
+For more information, please refer to our software policy page:
+https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
+
+Remember that many packages have already been installed on the system and can
+be loaded using 
+the 'module load <package__name>' command. If you are uncertain if a package is
+already available 
+on the system, please use 'module avail' or 'module spider' to search for it.
+============================================================================================== 
+========================================
+BERT-based Toxicity Analysis for Code-switched Hindi-English Text
+========================================
+Step 0: Preparing categorized dataset...
+Loading data files...
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/scripts/prepare_for_bert_analysis.py", line 93, in <module>
+    main() 
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/scripts/prepare_for_bert_analysis.py", line 48, in main
+    toxicity_df = pd.read_csv(args.toxicity_file)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'data/output/toxicity_analysis/hindi_prompt_toxicity.csv'
+Step 1: Fine-tuning BERT for toxicity classification...
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/scripts/finetune_bert_classifier.py", line 21, in <module>
+    from sklearn.model_selection import train_test_split
+ModuleNotFoundError: No module named 'sklearn'
+Step 2a: Performing feature attribution analysis for monolingual Hindi...
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/scripts/feature_attribution.py", line 18, in <module>
+    from lime.lime_text import LimeTextExplainer
+ModuleNotFoundError: No module named 'lime'
+Step 2b: Performing feature attribution analysis for code-switched text...
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/scripts/feature_attribution.py", line 18, in <module>
+    from lime.lime_text import LimeTextExplainer
+ModuleNotFoundError: No module named 'lime'
+Step 3: Comparing toxicity patterns between language categories...
+Loading monolingual explanations from data/output/bert_toxicity_analysis/feature_attribution/monolingual/lime_explanations.json
+Traceback (most recent call last):
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/scripts/compare_feature_importance.py", line 206, in <module>
+    main() 
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/scripts/compare_feature_importance.py", line 105, in main
+    mono_explanations = load_explanations(mono_file)
+  File "/gpfs/home6/tchakravorty/code-switch-thesis/scripts/compare_feature_importance.py", line 28, in load_explanations
+    with open(file_path, 'r', encoding='utf-8') as f:
+FileNotFoundError: [Errno 2] No such file or directory: 'data/output/bert_toxicity_analysis/feature_attribution/monolingual/lime_explanations.json'
+Analysis complete! Results saved to data/output/bert_toxicity_analysis
+
+JOB STATISTICS
+==============
+Job ID: 10860973
+Cluster: snellius
+User/Group: tchakravorty/tchakravorty
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:00:29
+CPU Efficiency: 6.20% of 00:07:48 core-walltime
+Job Wall-clock time: 00:00:26
+Memory Utilized: 1.49 MB
+Memory Efficiency: 0.00% of 32.00 GB
