@@ -1,2 +1,0 @@
-# Perspective API key
-PERSPECTIVE_API_KEY = "AIzaSyDf0c2MkAItSv7TBFps65WavRFLP-N275Y" 

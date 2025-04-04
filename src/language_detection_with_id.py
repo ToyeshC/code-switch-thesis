@@ -2,31 +2,84 @@ import pandas as pd
 import fasttext
 import argparse
 import os
+import json
 from tqdm import tqdm
 import re
 import nltk
 from nltk.corpus import words as nltk_words
 
+def extract_code_switched_sentences(text):
+    """
+    Extract only the code-switched sentences from the input text,
+    ignoring metadata, formatting, and other content.
+    
+    Args:
+        text (str): The input text which may contain metadata and other content
+        
+    Returns:
+        str: Only the code-switched sentence part of the text
+    """
+    # If the text is not a string, return it as is
+    if not isinstance(text, str) or not text:
+        return text
+        
+    # Try to identify if the text is in JSON format (contains prompt and completion)
+    if text.strip().startswith("{") and ("Prompt" in text or "Completion" in text):
+        try:
+            # Extract just the completion part which should contain the code-switched text
+            completion_match = re.search(r'"Completion":\s*"([^"]+)"', text)
+            if completion_match:
+                return completion_match.group(1).strip()
+        except:
+            pass
+    
+    # If we have a comma-separated line (likely from CSV), try to extract just the sentence
+    if "," in text and text.count(",") > 3:  # Likely a CSV line with multiple fields
+        # Try to find text that's not surrounded by quotes and metadata
+        # This is a heuristic approach - may need adjustment based on your specific format
+        parts = text.split('","')
+        if len(parts) > 1:
+            # Look for the longest part that's likely to be the actual sentence
+            parts = [p.strip('"') for p in parts]
+            parts = [p for p in parts if len(p) > 10 and not p.startswith("{") and not p.endswith("}")]
+            if parts:
+                return max(parts, key=len)
+    
+    # Remove any metadata-like patterns (key-value pairs, JSON fragments)
+    text = re.sub(r'"\w+":\s*("[^"]*"|[\d\.]+|\[[^\]]*\]|{[^}]*})', ' ', text)
+    
+    # Remove excessive punctuation and formatting
+    text = re.sub(r'["""",]', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
+
 def main():
     """
-    Process a CSV file containing generated sentences, detect languages using FastText,
+    Process a text file containing sentences, detect languages using FastText,
     and count Hindi and English words in each sentence with improved detection for Romanized Hindi.
-    Preserves the primary key throughout the process.
+    Preserves the prompt IDs from the ID mapping file.
     """
     parser = argparse.ArgumentParser(
-        description="Detect languages and count Hindi/English words in generated sentences with Romanized Hindi support"
+        description="Detect languages and count Hindi/English words in code-switched sentences with Romanized Hindi support"
     )
     parser.add_argument(
         "--input_file",
         type=str,
         required=True,
-        help="Path to the CSV file containing generated sentences with primary keys",
+        help="Path to the text file containing code-switched sentences",
+    )
+    parser.add_argument(
+        "--id_map",
+        type=str,
+        required=False,
+        help="Path to the JSON file containing the ID mapping",
     )
     parser.add_argument(
         "--output_file",
         type=str,
-        default=None,
-        help="Path to save the processed CSV file (defaults to input_file_processed.csv)",
+        required=True,
+        help="Path to save the processed CSV file",
     )
     parser.add_argument(
         "--fasttext_model",
@@ -35,18 +88,48 @@ def main():
         help="Path to the FastText language identification model",
     )
     parser.add_argument(
-        "--hindi_words_file",
-        type=str,
-        default=None,
-        help="Path to a file containing common Romanized Hindi words (one per line)",
+        "--is_compiled_csv",
+        action="store_true",
+        help="Whether the input is a compiled CSV with src/tgt/generated columns",
     )
     args = parser.parse_args()
 
-    # Set default output file if not provided
-    if args.output_file is None:
-        base_name = os.path.splitext(args.input_file)[0]
-        args.output_file = f"{base_name}_processed.csv"
-
+    # Create output directory if it doesn't exist
+    os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
+    
+    id_mapping = {}
+    if args.id_map:
+        # Load the ID mapping
+        with open(args.id_map, 'r', encoding='utf-8') as f:
+            id_mapping = json.load(f)
+        
+        # Convert string keys to integers
+        id_mapping = {int(k): v for k, v in id_mapping.items()}
+    
+    # Read the input file
+    sentences = []
+    prompt_ids = []
+    model_info = None
+    method_info = None
+    
+    if args.is_compiled_csv:
+        # Load the compiled CSV file (e.g., data/output/hindi/compile_hindi.csv)
+        compiled_df = pd.read_csv(args.input_file)
+        # Use the 'generated' column as our text
+        sentences = compiled_df['generated'].tolist()
+        # Use index as prompt_id if no mapping is provided
+        prompt_ids = compiled_df.index.tolist()
+        # Save additional metadata
+        model_info = compiled_df['model'].tolist() if 'model' in compiled_df.columns else None
+        method_info = compiled_df['method'].tolist() if 'method' in compiled_df.columns else None
+    else:
+        with open(args.input_file, 'r', encoding='utf-8') as f:
+            raw_sentences = [line.strip() for line in f.readlines()]
+        
+        # Extract only the code-switched parts from the sentences
+        sentences = [extract_code_switched_sentences(sentence) for sentence in raw_sentences]
+        prompt_ids = [id_mapping.get(i) for i in range(len(sentences))]
+    
     # Load the FastText language identification model
     print(f"Loading FastText model from {args.fasttext_model}...")
     model = fasttext.load_model(args.fasttext_model)
@@ -60,7 +143,7 @@ def main():
         nltk.download('words')
         english_words = set(nltk_words.words())
 
-    # Common Romanized Hindi words and patterns
+    # Common Romanized Hindi words - extensive dictionary
     common_hindi_words = {
         # Common Hindi words in Roman script
         'main', 'mein', 'hum', 'tum', 'aap', 'yeh', 'woh', 'kya', 'kyun', 'kaise',
@@ -85,16 +168,13 @@ def main():
         'theek', 'hoon', 'hu', 'ho', 'hai', 'hain', 'tha', 'thi', 'the', 'thi',
         'raha', 'rahi', 'rahe', 'rahenge', 'rahegi', 'rahega', 'gaya', 'gayi', 'gaye',
         'aaya', 'aayi', 'aaye', 'jaayega', 'jaayegi', 'jaayenge', 'karta', 'karti', 'karte',
-        'karegi', 'karega', 'karenge'
+        'karegi', 'karega', 'karenge', 'karne', 'kiya', 'kitna', 'kitni', 'kitne',
+        'kyunki', 'isliye', 'isiliye', 'phir', 'phirse', 'jaise', 'jaisa', 'jab', 'tab',
+        'agar', 'magar', 'lekin', 'toh', 'to', 'acha', 'achha', 'bas', 'sirf',
+        'kafi', 'bahut', 'bohat', 'thoda', 'thodi', 'pura', 'poora', 'saara', 'sabhi',
+        'mujhe', 'tumhe', 'unhe', 'humein', 'apne', 'mere', 'tere', 'uske', 'hamare',
+        'tumhare', 'unke', 'kiske', 'jiske', 'sabhi'
     }
-
-    # Load additional Hindi words from file if provided
-    if args.hindi_words_file and os.path.exists(args.hindi_words_file):
-        print(f"Loading additional Hindi words from {args.hindi_words_file}...")
-        with open(args.hindi_words_file, 'r', encoding='utf-8') as f:
-            additional_words = {line.strip().lower() for line in f if line.strip()}
-            common_hindi_words.update(additional_words)
-        print(f"Added {len(additional_words)} words from file")
 
     # Patterns for identifying Romanized Hindi
     hindi_patterns = [
@@ -116,24 +196,20 @@ def main():
     # Compile patterns for faster matching
     hindi_pattern_regex = re.compile('|'.join(hindi_patterns), re.IGNORECASE)
 
-    # Read the input CSV file
-    print(f"Reading input file: {args.input_file}")
-    df = pd.read_csv(args.input_file)
-    
-    # Ensure 'prompt_id' is in the dataframe
-    if 'prompt_id' not in df.columns:
-        print("Warning: No 'prompt_id' column found. Will create one.")
-        df['prompt_id'] = range(1, len(df) + 1)
-    
-    # Initialize new columns for word counts
-    df['hindi_word_count'] = 0
-    df['english_word_count'] = 0
-    df['romanized_hindi_count'] = 0
-    
     # Function to process each sentence
-    def process_sentence(sentence):
-        if not isinstance(sentence, str) or pd.isna(sentence):
-            return 0, 0, 0  # Return zeros for non-string or NaN values
+    def process_sentence(sentence, index):
+        if not isinstance(sentence, str) or not sentence:
+            return None
+        
+        prompt_id = prompt_ids[index] if index < len(prompt_ids) else None
+        if prompt_id is None and id_mapping:
+            prompt_id = id_mapping.get(index)
+        
+        if prompt_id is None:
+            prompt_id = index
+        
+        # Clean the sentence to remove any newlines
+        sentence = sentence.replace("\n", " ").replace("\r", " ")
         
         # Tokenize the sentence into words
         words = sentence.split()
@@ -152,108 +228,73 @@ def main():
                 continue
                 
             # For remaining words, use FastText for language detection
-            prediction = model.predict(word, k=1)
-            lang = prediction[0][0].replace('__label__', '')
+            try:
+                clean_word = word_lower.replace("\n", " ").replace("\r", " ")
+                prediction = model.predict(clean_word, k=1)
+                lang = prediction[0][0].replace('__label__', '')
             
-            # Count words by language
-            if lang == 'hi':
-                hindi_count += 1
-            # Only count as English if it's in the English dictionary or very likely English
-            elif lang == 'en' and (word_lower in english_words or len(word) > 3):
-                english_count += 1
-            # Words not clearly identified might be Romanized Hindi
-            elif len(word) > 2:  # Ignore very short words
-                # Check if it follows Hindi word patterns (e.g., ending with common suffixes)
-                if (word_lower.endswith(('na', 'ne', 'ni', 'ta', 'ti', 'te', 'ya', 'ye', 'yi', 
-                                        'kar', 'wala', 'wali', 'gaya', 'gayi', 'raha', 'rahi')) or
-                    any(pattern in word_lower for pattern in ('aa', 'ee', 'oo', 'kh', 'gh', 'ch', 'jh', 'th'))):
-                    romanized_hindi_count += 1
-                else:
+                # Count words by language
+                if lang == 'hi':
+                    hindi_count += 1
+                # Only count as English if it's in the English dictionary or very likely English
+                elif lang == 'en' and (word_lower in english_words or len(word) > 3):
                     english_count += 1
+                # Words not clearly identified might be Romanized Hindi
+                elif len(word) > 2:  # Ignore very short words
+                    # Check if it follows Hindi word patterns (e.g., ending with common suffixes)
+                    if (word_lower.endswith(('na', 'ne', 'ni', 'ta', 'ti', 'te', 'ya', 'ye', 'yi', 
+                                            'kar', 'wala', 'wali', 'gaya', 'gayi', 'raha', 'rahi')) or
+                        any(pattern in word_lower for pattern in ('aa', 'ee', 'oo', 'kh', 'gh', 'ch', 'jh', 'th'))):
+                        romanized_hindi_count += 1
+                    else:
+                        english_count += 1
+            except Exception as e:
+                # If error occurs in language detection, just skip the word
+                continue
+        
+        total_words = len(words)
+        total_hindi = hindi_count + romanized_hindi_count
+        
+        # Calculate percentages
+        hindi_percent = (total_hindi / total_words * 100) if total_words > 0 else 0
+        english_percent = (english_count / total_words * 100) if total_words > 0 else 0
+        
+        # Determine if sentence is code-switched
+        is_code_switched = (total_hindi > 0 and english_count > 0 and 
+                           hindi_percent >= 20 and english_percent >= 20)
+        
+        # Return results
+        result_entry = {
+            'prompt_id': prompt_id,
+            'sentence': sentence,
+            'hindi_words': hindi_count,
+            'romanized_hindi_words': romanized_hindi_count,
+            'english_words': english_count,
+            'total_words': total_words,
+            'hindi_percent': hindi_percent,
+            'english_percent': english_percent,
+            'is_code_switched': is_code_switched
+        }
+        
+        # Add model and method info if available
+        if model_info and index < len(model_info):
+            result_entry['model'] = model_info[index]
+        if method_info and index < len(method_info):
+            result_entry['method'] = method_info[index]
             
-        return hindi_count, english_count, romanized_hindi_count
+        return result_entry
     
-    print("Processing sentences and counting words by language...")
+    # Process sentences
+    results = []
+    for i, sentence in enumerate(tqdm(sentences)):
+        result = process_sentence(sentence, i)
+        if result:
+            results.append(result)
     
-    # Identify the text column 
-    text_column = 'sentence' if 'sentence' in df.columns else None
-    
-    if not text_column:
-        # Try to find a column that might contain sentences
-        text_columns = [col for col in df.columns if df[col].dtype == 'object' and col != 'prompt_id' and col != 'language']
-        if text_columns:
-            print(f"Found potential text columns: {text_columns}")
-            text_column = text_columns[0]
-            print(f"Processing the first text column: {text_column}")
-    
-    if text_column:
-        # Use tqdm for progress tracking
-        for i in tqdm(range(len(df))):
-            hindi_count, english_count, romanized_hindi_count = process_sentence(df.loc[i, text_column])
-            df.loc[i, 'hindi_word_count'] = hindi_count
-            df.loc[i, 'english_word_count'] = english_count
-            df.loc[i, 'romanized_hindi_count'] = romanized_hindi_count
-    else:
-        print("Error: No suitable text column found for processing.")
-        return
-    
-    # Calculate total Hindi count (Devanagari + Romanized)
-    df['total_hindi_count'] = df['hindi_word_count'] + df['romanized_hindi_count']
-    
-    # Calculate percentages for analysis
-    df['total_words'] = df['hindi_word_count'] + df['romanized_hindi_count'] + df['english_word_count']
-    
-    # Add percentage columns (avoiding division by zero)
-    df['hindi_percent'] = df.apply(
-        lambda row: (row['hindi_word_count'] / row['total_words'] * 100) if row['total_words'] > 0 else 0, 
-        axis=1
-    )
-    df['romanized_hindi_percent'] = df.apply(
-        lambda row: (row['romanized_hindi_count'] / row['total_words'] * 100) if row['total_words'] > 0 else 0, 
-        axis=1
-    )
-    df['total_hindi_percent'] = df.apply(
-        lambda row: (row['total_hindi_count'] / row['total_words'] * 100) if row['total_words'] > 0 else 0, 
-        axis=1
-    )
-    df['english_percent'] = df.apply(
-        lambda row: (row['english_word_count'] / row['total_words'] * 100) if row['total_words'] > 0 else 0, 
-        axis=1
-    )
-    
-    # Save the processed DataFrame to a new CSV file
-    print(f"Saving processed data to {args.output_file}")
+    # Create DataFrame and save
+    df = pd.DataFrame(results)
     df.to_csv(args.output_file, index=False)
-    
-    # Print summary statistics
-    print("\n===== Summary Statistics =====")
-    print(f"Total sentences processed: {len(df)}")
-    print(f"Average Devanagari Hindi words per sentence: {df['hindi_word_count'].mean():.2f}")
-    print(f"Average Romanized Hindi words per sentence: {df['romanized_hindi_count'].mean():.2f}")
-    print(f"Average Total Hindi words per sentence: {df['total_hindi_count'].mean():.2f}")
-    print(f"Average English words per sentence: {df['english_word_count'].mean():.2f}")
-    
-    # Count sentences by category
-    sentences_with_only_hindi = ((df['total_hindi_count'] > 0) & (df['english_word_count'] == 0)).sum()
-    sentences_with_only_english = ((df['total_hindi_count'] == 0) & (df['english_word_count'] > 0)).sum()
-    sentences_with_both = ((df['total_hindi_count'] > 0) & (df['english_word_count'] > 0)).sum()
-    sentences_with_neither = ((df['total_hindi_count'] == 0) & (df['english_word_count'] == 0)).sum()
-    
-    print(f"\n===== Sentence Categories =====")
-    print(f"Sentences with only Hindi (no English): {sentences_with_only_hindi} ({sentences_with_only_hindi/len(df)*100:.2f}%)")
-    print(f"Sentences with only English (no Hindi): {sentences_with_only_english} ({sentences_with_only_english/len(df)*100:.2f}%)")
-    print(f"Sentences with both Hindi and English: {sentences_with_both} ({sentences_with_both/len(df)*100:.2f}%)")
-    print(f"Sentences with neither Hindi nor English: {sentences_with_neither} ({sentences_with_neither/len(df)*100:.2f}%)")
-    
-    # Breakdown of Hindi types
-    only_devanagari = ((df['hindi_word_count'] > 0) & (df['romanized_hindi_count'] == 0)).sum()
-    only_romanized = ((df['hindi_word_count'] == 0) & (df['romanized_hindi_count'] > 0)).sum()
-    both_hindi_types = ((df['hindi_word_count'] > 0) & (df['romanized_hindi_count'] > 0)).sum()
-    
-    print(f"\n===== Hindi Type Breakdown =====")
-    print(f"Sentences with only Devanagari Hindi: {only_devanagari} ({only_devanagari/len(df)*100:.2f}%)")
-    print(f"Sentences with only Romanized Hindi: {only_romanized} ({only_romanized/len(df)*100:.2f}%)")
-    print(f"Sentences with both Devanagari and Romanized Hindi: {both_hindi_types} ({both_hindi_types/len(df)*100:.2f}%)")
+    print(f"Language detection complete. Results saved to {args.output_file}")
 
 if __name__ == "__main__":
     main() 

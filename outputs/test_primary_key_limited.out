@@ -1,270 +1,0 @@
-============================================================================================== 
-Warning! Mixing Conda and module environments may lead to corruption of the
-user environment. 
-We do not recommend users mixing those two environments unless absolutely
-necessary. Note that 
-SURF does not provide any support for Conda environment.
-For more information, please refer to our software policy page:
-https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
-
-Remember that many packages have already been installed on the system and can
-be loaded using 
-the 'module load <package__name>' command. If you are uncertain if a package is
-already available 
-on the system, please use 'module avail' or 'module spider' to search for it.
-============================================================================================== 
-Retrieved Perspective API key from src/config.py
-Extracting first 10 lines from Hindi prompts...
-Extracting first 10 lines from English prompts...
-Step 1: Adding primary keys to original prompts...
-Created CSV files with primary keys:
-  - Hindi prompts: data/output/test_primary_key_limited/hindi_prompts_with_id.csv
-  - English prompts: data/output/test_primary_key_limited/english_prompts_with_id.csv
-  - All prompts: data/output/test_primary_key_limited/all_prompts_with_id.csv
-Step 2: Detecting languages in Hindi prompts...
-Loading FastText model from lid.176.bin...
-Loaded 235892 English words from NLTK
-Reading input file: data/output/test_primary_key_limited/hindi_prompts_with_id.csv
-Processing sentences and counting words by language...
-  0%|          | 0/99 [00:00<?, ?it/s]100%|██████████| 99/99 [00:00<00:00, 1699.75it/s]
-Saving processed data to data/output/test_primary_key_limited/hindi/language_detection.csv
-
-===== Summary Statistics =====
-Total sentences processed: 99
-Average Devanagari Hindi words per sentence: 6.56
-Average Romanized Hindi words per sentence: 0.00
-Average Total Hindi words per sentence: 6.56
-Average English words per sentence: 2.66
-
-===== Sentence Categories =====
-Sentences with only Hindi (no English): 5 (5.05%)
-Sentences with only English (no Hindi): 1 (1.01%)
-Sentences with both Hindi and English: 93 (93.94%)
-Sentences with neither Hindi nor English: 0 (0.00%)
-
-===== Hindi Type Breakdown =====
-Sentences with only Devanagari Hindi: 98 (98.99%)
-Sentences with only Romanized Hindi: 0 (0.00%)
-Sentences with both Devanagari and Romanized Hindi: 0 (0.00%)
-Step 3: Detecting languages in English prompts...
-Loading FastText model from lid.176.bin...
-Loaded 235892 English words from NLTK
-Reading input file: data/output/test_primary_key_limited/english_prompts_with_id.csv
-Processing sentences and counting words by language...
-  0%|          | 0/99 [00:00<?, ?it/s]100%|██████████| 99/99 [00:00<00:00, 1810.23it/s]
-Saving processed data to data/output/test_primary_key_limited/english/language_detection.csv
-
-===== Summary Statistics =====
-Total sentences processed: 99
-Average Devanagari Hindi words per sentence: 0.01
-Average Romanized Hindi words per sentence: 0.49
-Average Total Hindi words per sentence: 0.51
-Average English words per sentence: 8.89
-
-===== Sentence Categories =====
-Sentences with only Hindi (no English): 0 (0.00%)
-Sentences with only English (no Hindi): 62 (62.63%)
-Sentences with both Hindi and English: 37 (37.37%)
-Sentences with neither Hindi nor English: 0 (0.00%)
-
-===== Hindi Type Breakdown =====
-Sentences with only Devanagari Hindi: 0 (0.00%)
-Sentences with only Romanized Hindi: 36 (36.36%)
-Sentences with both Devanagari and Romanized Hindi: 1 (1.01%)
-Step 4: Filtering Hindi prompts...
-Reading input file: data/output/test_primary_key_limited/hindi/language_detection.csv
-Original number of sentences: 99
-
-===== Filtering Summary =====
-Removed English-only sentences: 1 (1.01%)
-Removed Hindi-only sentences: 5 (5.05%)
-Removed English-dominant sentences: 0 (0.00%)
-Total sentences removed: 6 (6.06%)
-Remaining sentences: 93 (93.94%)
-
-Filtered data saved to: data/output/test_primary_key_limited/hindi/filtered_output.csv
-Filter status saved to: data/output/test_primary_key_limited/hindi/filtered_output_filter_status.csv
-Step 5: Filtering English prompts...
-Reading input file: data/output/test_primary_key_limited/english/language_detection.csv
-Original number of sentences: 99
-
-===== Filtering Summary =====
-Removed English-only sentences: 62 (62.63%)
-Removed Hindi-only sentences: 0 (0.00%)
-Removed English-dominant sentences: 35 (35.35%)
-Total sentences removed: 97 (97.98%)
-Remaining sentences: 2 (2.02%)
-
-Filtered data saved to: data/output/test_primary_key_limited/english/filtered_output.csv
-Filter status saved to: data/output/test_primary_key_limited/english/filtered_output_filter_status.csv
-Step 6: Generating LLaMA responses for Hindi prompts...
-Sampled 5 prompts for quick testing
-Using Hugging Face token from environment variable
-Loading meta-llama/Meta-Llama-3-8B-Instruct tokenizer...
-Loading meta-llama/Meta-Llama-3-8B-Instruct model...
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.06s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.06s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.05s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.35it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.17it/s]
-Reading input file: data/output/test_primary_key_limited/hindi/sample_5_filtered.csv
-Generating responses using meta-llama/Meta-Llama-3-8B-Instruct...
-  0%|          | 0/5 [00:00<?, ?it/s] 20%|██        | 1/5 [00:03<00:14,  3.64s/it] 40%|████      | 2/5 [00:06<00:09,  3.20s/it] 60%|██████    | 3/5 [00:09<00:06,  3.06s/it] 80%|████████  | 4/5 [00:12<00:02,  2.99s/it]100%|██████████| 5/5 [00:15<00:00,  2.96s/it]100%|██████████| 5/5 [00:15<00:00,  3.04s/it]
-Saving responses to data/output/test_primary_key_limited/model_responses/llama_hindi_responses.csv
-Step 7: Generating LLaMA responses for English prompts...
-Using Hugging Face token from environment variable
-Loading meta-llama/Meta-Llama-3-8B-Instruct tokenizer...
-Loading meta-llama/Meta-Llama-3-8B-Instruct model...
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.06s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.06s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.04s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.35it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.17it/s]
-Reading input file: data/output/test_primary_key_limited/english/filtered_output.csv
-Generating responses using meta-llama/Meta-Llama-3-8B-Instruct...
-  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:03<00:03,  3.60s/it]100%|██████████| 2/2 [00:06<00:00,  3.16s/it]100%|██████████| 2/2 [00:06<00:00,  3.23s/it]
-Saving responses to data/output/test_primary_key_limited/model_responses/llama_english_responses.csv
-Step 8: Generating Aya responses for Hindi prompts...
-Using Hugging Face token from environment variable
-Loading CohereForAI/aya-23-8B tokenizer...
-Loading CohereForAI/aya-23-8B model...
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:02<00:06,  2.18s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:04<00:04,  2.17s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:06<00:02,  2.20s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:07<00:00,  1.56s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:07<00:00,  1.79s/it]
-Reading input file: data/output/test_primary_key_limited/hindi/sample_5_filtered.csv
-Generating responses using CohereForAI/aya-23-8B...
-  0%|          | 0/5 [00:00<?, ?it/s] 20%|██        | 1/5 [00:04<00:17,  4.35s/it] 40%|████      | 2/5 [00:07<00:11,  3.86s/it] 60%|██████    | 3/5 [00:11<00:07,  3.71s/it] 80%|████████  | 4/5 [00:14<00:03,  3.63s/it]100%|██████████| 5/5 [00:18<00:00,  3.59s/it]100%|██████████| 5/5 [00:18<00:00,  3.69s/it]
-Saving responses to data/output/test_primary_key_limited/model_responses/aya_hindi_responses.csv
-Step 9: Generating Aya responses for English prompts...
-Using Hugging Face token from environment variable
-Loading CohereForAI/aya-23-8B tokenizer...
-Loading CohereForAI/aya-23-8B model...
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:02<00:06,  2.19s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:04<00:04,  2.18s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:06<00:02,  2.21s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:07<00:00,  1.57s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:07<00:00,  1.80s/it]
-Reading input file: data/output/test_primary_key_limited/english/filtered_output.csv
-Generating responses using CohereForAI/aya-23-8B...
-  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:04<00:04,  4.40s/it]100%|██████████| 2/2 [00:07<00:00,  3.90s/it]100%|██████████| 2/2 [00:07<00:00,  3.97s/it]
-Saving responses to data/output/test_primary_key_limited/model_responses/aya_english_responses.csv
-Step 10: Analyzing toxicity of Hindi prompts...
-Reading input file: data/output/test_primary_key_limited/hindi/sample_5_filtered.csv
-Loading existing progress from data/output/test_primary_key_limited/toxicity_analysis/hindi_prompt_toxicity_progress.csv
-Resuming from 5 previously processed items
-Analyzing toxicity for 4 items...
-  0%|          | 0/4 [00:00<?, ?it/s] 25%|██▌       | 1/4 [00:00<00:00,  5.07it/s] 50%|█████     | 2/4 [00:00<00:00,  4.76it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.59it/s]100%|██████████| 4/4 [00:00<00:00,  4.81it/s]100%|██████████| 4/4 [00:00<00:00,  4.78it/s]
-Saved progress (1/4)
-Saved progress (2/4)
-Saved progress (3/4)
-Saved progress (4/4)
-Saving results to data/output/test_primary_key_limited/toxicity_analysis/hindi_prompt_toxicity.csv
-Step 11: Analyzing toxicity of LLaMA responses for Hindi prompts...
-Reading input file: data/output/test_primary_key_limited/model_responses/llama_hindi_responses.csv
-Loading existing progress from data/output/test_primary_key_limited/toxicity_analysis/llama_hindi_toxicity_progress.csv
-Resuming from 5 previously processed items
-Analyzing toxicity for 4 items...
-  0%|          | 0/4 [00:00<?, ?it/s] 25%|██▌       | 1/4 [00:00<00:00,  4.19it/s] 50%|█████     | 2/4 [00:00<00:00,  4.37it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.35it/s]100%|██████████| 4/4 [00:00<00:00,  4.39it/s]100%|██████████| 4/4 [00:00<00:00,  4.36it/s]
-Saved progress (1/4)
-Saved progress (2/4)
-Saved progress (3/4)
-Saved progress (4/4)
-Saving results to data/output/test_primary_key_limited/toxicity_analysis/llama_hindi_toxicity.csv
-Step 12: Analyzing toxicity of English prompts...
-Reading input file: data/output/test_primary_key_limited/english/filtered_output.csv
-Analyzing toxicity for 2 items...
-  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:00<00:00,  3.50it/s]100%|██████████| 2/2 [00:00<00:00,  3.86it/s]100%|██████████| 2/2 [00:00<00:00,  3.80it/s]
-Saved progress (1/2)
-Saved progress (2/2)
-Saving results to data/output/test_primary_key_limited/toxicity_analysis/english_prompt_toxicity.csv
-Step 13: Analyzing toxicity of LLaMA responses for English prompts...
-Reading input file: data/output/test_primary_key_limited/model_responses/llama_english_responses.csv
-Analyzing toxicity for 2 items...
-  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:00<00:00,  4.41it/s]100%|██████████| 2/2 [00:00<00:00,  4.66it/s]100%|██████████| 2/2 [00:00<00:00,  4.62it/s]
-Saved progress (1/2)
-Saved progress (2/2)
-Saving results to data/output/test_primary_key_limited/toxicity_analysis/llama_english_toxicity.csv
-Step 14: Analyzing toxicity of Aya responses for Hindi prompts...
-Reading input file: data/output/test_primary_key_limited/model_responses/aya_hindi_responses.csv
-Loading existing progress from data/output/test_primary_key_limited/toxicity_analysis/aya_hindi_toxicity_progress.csv
-Resuming from 5 previously processed items
-Analyzing toxicity for 4 items...
-  0%|          | 0/4 [00:00<?, ?it/s] 25%|██▌       | 1/4 [00:00<00:00,  4.53it/s] 50%|█████     | 2/4 [00:00<00:00,  4.77it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.60it/s]100%|██████████| 4/4 [00:00<00:00,  4.27it/s]100%|██████████| 4/4 [00:00<00:00,  4.40it/s]
-Saved progress (1/4)
-Saved progress (2/4)
-Saved progress (3/4)
-Saved progress (4/4)
-Saving results to data/output/test_primary_key_limited/toxicity_analysis/aya_hindi_toxicity.csv
-Step 15: Analyzing toxicity of Aya responses for English prompts...
-Reading input file: data/output/test_primary_key_limited/model_responses/aya_english_responses.csv
-Analyzing toxicity for 2 items...
-  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:00<00:00,  4.42it/s]100%|██████████| 2/2 [00:00<00:00,  4.54it/s]100%|██████████| 2/2 [00:00<00:00,  4.52it/s]
-Saved progress (1/2)
-Saved progress (2/2)
-Saving results to data/output/test_primary_key_limited/toxicity_analysis/aya_english_toxicity.csv
-Step 16: Comparing toxicity for Hindi prompts and LLaMA responses...
-Reading prompt toxicity file: data/output/test_primary_key_limited/toxicity_analysis/hindi_prompt_toxicity.csv
-Reading LLaMA response toxicity file: data/output/test_primary_key_limited/toxicity_analysis/llama_hindi_toxicity.csv
-Merged dataset has 9 rows
-
-===== Statistical Comparison =====
-Warning: Not enough valid data points for toxicity, skipping
-Warning: Not enough valid data points for severe_toxicity, skipping
-Warning: Not enough valid data points for identity_attack, skipping
-Warning: Not enough valid data points for insult, skipping
-Warning: Not enough valid data points for profanity, skipping
-Warning: Not enough valid data points for threat, skipping
-
-Statistics saved to data/output/test_primary_key_limited/toxicity_analysis/hindi_llama_comparison/toxicity_comparison_llama.csv
-Step 17: Comparing toxicity for English prompts and LLaMA responses...
-Reading prompt toxicity file: data/output/test_primary_key_limited/toxicity_analysis/english_prompt_toxicity.csv
-Reading LLaMA response toxicity file: data/output/test_primary_key_limited/toxicity_analysis/llama_english_toxicity.csv
-Merged dataset has 2 rows
-
-===== Statistical Comparison =====
-Warning: Not enough valid data points for toxicity, skipping
-Warning: Not enough valid data points for severe_toxicity, skipping
-Warning: Not enough valid data points for identity_attack, skipping
-Warning: Not enough valid data points for insult, skipping
-Warning: Not enough valid data points for profanity, skipping
-Warning: Not enough valid data points for threat, skipping
-
-Statistics saved to data/output/test_primary_key_limited/toxicity_analysis/english_llama_comparison/toxicity_comparison_llama.csv
-Step 18: Creating verification report for primary key tracking...
-Primary key verification report saved to data/output/test_primary_key_limited/primary_key_verification.json
-
-Summary:
-Hindi prompts with ID: OK - 99 IDs
-English prompts with ID: OK - 99 IDs
-Hindi language detection: OK - 99 IDs
-English language detection: OK - 99 IDs
-Hindi filtered output: OK - 93 IDs
-English filtered output: OK - 2 IDs
-Hindi sample 5 filtered: OK - 5 IDs
-LLaMA Hindi responses: OK - 5 IDs
-LLaMA English responses: OK - 2 IDs
-Aya Hindi responses: OK - 5 IDs
-Aya English responses: OK - 2 IDs
-Hindi prompt toxicity: OK - 9 IDs
-English prompt toxicity: OK - 2 IDs
-LLaMA Hindi toxicity: OK - 9 IDs
-LLaMA English toxicity: OK - 2 IDs
-Aya Hindi toxicity: OK - 9 IDs
-Aya English toxicity: OK - 2 IDs
-
-Verifying primary key tracking consistency between paired files:
-Hindi filtered -> LLaMA Hindi: True (5 IDs in filtered, 5 IDs in LLaMA)
-English filtered -> LLaMA English: True (2 IDs in filtered, 2 IDs in LLaMA)
-Hindi prompt toxicity ∩ LLaMA Hindi toxicity: 9 common IDs of 9 Hindi and 9 LLaMA
-Perspective API usage summary:
------------------------------
-Hindi prompts: 6 requests (minus header)
-English prompts: 3 requests (minus header)
-LLaMA Hindi responses: 26 requests (minus header)
-LLaMA English responses: 8 requests (minus header)
-Aya Hindi responses: 7 requests (minus header)
-Aya English responses: 3 requests (minus header)
------------------------------
-Test analysis complete! Results saved to data/output/test_primary_key_limited
-Check data/output/test_primary_key_limited/primary_key_verification.json for primary key tracking information
-
-JOB STATISTICS
-==============
-Job ID: 10855975
-Cluster: snellius
-User/Group: tchakravorty/tchakravorty
-State: RUNNING
-Nodes: 1
-Cores per node: 18
-CPU Utilized: 00:00:00
-CPU Efficiency: 0.00% of 00:36:00 core-walltime
-Job Wall-clock time: 00:02:00
-Memory Utilized: 0.00 MB (estimated maximum)
-Memory Efficiency: 0.00% of 32.00 GB (32.00 GB/node)
-WARNING: Efficiency statistics may be misleading for RUNNING jobs.

@@ -2,3 +2,5 @@ data/
 ezswitch/
 lid.176.bin
 src/config.py
+indic_nlp_library/
+indiclid-models/

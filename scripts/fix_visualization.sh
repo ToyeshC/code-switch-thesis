@@ -1,8 +1,7 @@
 #!/bin/bash
 
 #SBATCH --time=2:00:00
-#SBATCH --partition=gpu
-#SBATCH --gpus=1
+#SBATCH --partition=rome
 #SBATCH --job-name=fix_viz
 #SBATCH --mem=16G
 #SBATCH --output=outputs/fix_visualization.out

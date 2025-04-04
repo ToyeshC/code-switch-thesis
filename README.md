@@ -4,33 +4,41 @@ This repository contains a pipeline for analyzing toxicity in code-switched text
 
 ## Repository Structure
 
-The clean repository structure is organized as follows:
+The repository structure is organized as follows:
 
 ```
 code-switch-thesis/
 ├── data/
-│   ├── extracted_prompts/       # Hindi and English prompt data
-│   ├── RTP-LX/                  # RTP-LX datasets (needs to be downloaded)
-│   └── output/                  # Analysis outputs and results
-├── ezswitch/                    # ezswitch library (needs to be cloned)
-├── scripts/                     # Modular execution scripts
-│   ├── 01_extract_rtp_data.sh   # Extract data from RTP-LX
-│   ├── 02_language_detection.sh # Detect language in prompts
-│   ├── 03_filter_code_switch.sh # Filter for code-switched content
-│   ├── 04_generate_responses.sh # Generate LLM responses
-│   ├── 05_analyze_toxicity.sh   # Analyze toxicity of prompts/responses
-│   └── 06_visualization.sh      # Generate visualizations
-├── src/                         # Core Python implementation
-│   ├── add_primary_key.py       # Add unique identifiers to prompts
+│   ├── extracted_prompts/        # Text files for Hindi and English prompts
+│   ├── translate_api_outputs/    # Machine translations 
+│   ├── alignments/               # Word alignments between languages
+│   ├── RTP-LX/                   # RTP-LX datasets (needs to be downloaded)
+│   └── output/                   # Analysis outputs and results
+├── ezswitch/                     # ezswitch library (needs to be cloned)
+├── scripts/                      # Modular execution scripts
+│   ├── 00_extract_rtp_data.sh    # Extract data from RTP-LX
+│   ├── 01_extract_prompts_to_text.sh # Extract prompts to text files
+│   ├── 02_translate_files.sh     # Translate using Google Translate API
+│   ├── 03_generate_alignments.sh # Generate word alignments
+│   ├── 04_generate_code_switched_outputs.sh # Generate code-switched outputs
+│   ├── 05_language_detection.sh  # Detect language in prompts
+│   ├── 06_filter_code_switch.sh  # Filter for code-switched content
+│   ├── 07_generate_responses.sh  # Generate LLM responses
+│   ├── 08_analyze_toxicity.sh    # Analyze toxicity of prompts/responses
+│   └── 09_visualization.sh       # Generate visualizations
+├── src/                          # Core Python implementation
+│   ├── add_primary_key.py        # Add unique identifiers to prompts
+│   ├── extract_prompts_to_text.py # Extract prompts to text files
+│   ├── translate_file.py         # Translate files using Google Translate
 │   ├── analyze_toxicity_with_id.py    # Toxicity analysis with ID tracking
 │   ├── compare_toxicity_with_id.py    # Compare prompt and response toxicity
-│   ├── config.py                # Configuration settings
+│   ├── config.py                 # Configuration settings
 │   ├── filter_language_mix_with_id.py # Filter for code-switched sentences
 │   ├── generate_model_responses_with_id.py # Generate model responses
 │   └── language_detection_with_id.py  # Detect language composition
-├── lid.176.bin                  # FastText language identification model
-├── .gitignore                   # Git ignore file
-└── README.md                    # This file
+├── lid.176.bin                   # FastText language identification model
+├── .gitignore                    # Git ignore file
+└── README.md                     # This file
 ```
 
 ## Setup
@@ -42,6 +50,7 @@ code-switch-thesis/
 - HuggingFace Transformers
 - FastText language identification model (`lid.176.bin`)
 - Perspective API key (for toxicity analysis)
+- Google Translate Python library (`googletrans`)
 
 ### 1. Download RTP-LX Dataset
 
@@ -61,7 +70,7 @@ unzip data/RTP-LX/RTP-LX.zip -d data/RTP-LX/
 ls data/RTP-LX/*.json
 ```
 
-The RTP-LX dataset contains pre-defined prompts in multiple languages, which our scripts will extract and process. The extracted prompts will automatically be placed in the `data/extracted_prompts` directory during the first step of the pipeline (`01_extract_rtp_data.sh`).
+The RTP-LX dataset contains pre-defined prompts in multiple languages, which our scripts will extract and process.
 
 ### 2. Set Up ezswitch Library
 
@@ -98,32 +107,47 @@ echo 'PERSPECTIVE_API_KEY = "your_key_here"' > src/config.py
 The codebase implements a pipeline with the following key components:
 
 1. **Primary Key Assignment**: Adding unique identifiers to prompts to track them through the pipeline
-2. **Language Detection**: Analyzing Hindi and English content in each prompt
-3. **Language Filtering**: Identifying balanced code-switched sentences
-4. **Model Response Generation**: Getting responses from LLMs (LLaMA, Aya) for prompts
-5. **Toxicity Analysis**: Measuring toxicity metrics in prompts and responses
-6. **Visualization**: Generating histograms, boxplots, and comparison charts
+2. **Translation**: Translating prompts between languages using Google Translate
+3. **Alignment**: Generating word alignments between languages
+4. **Code-Switching**: Generating code-switched outputs using ezswitch
+5. **Language Detection**: Analyzing Hindi and English content in each prompt
+6. **Language Filtering**: Identifying balanced code-switched sentences
+7. **Model Response Generation**: Getting responses from LLMs (LLaMA, Aya) for prompts
+8. **Toxicity Analysis**: Measuring toxicity metrics in prompts and responses
+9. **Visualization**: Generating histograms, boxplots, and comparison charts
 
 ## Execution Pipeline
 
 The analysis is split into modular scripts that should be executed in numerical order:
 
-### 1. Data Extraction (`01_extract_rtp_data.sh`)
-Extracts Hindi and English prompts from the RTP-LX dataset and assigns primary keys. This script creates the initial dataset in the `data/extracted_prompts` directory and prepares it with unique identifiers for tracking through the pipeline.
+### 0. Data Extraction (`00_extract_rtp_data.sh`)
+Extracts Hindi and English prompts from the RTP-LX dataset and assigns primary keys. This script creates the initial dataset with unique identifiers for tracking through the pipeline.
 
-### 2. Language Detection (`02_language_detection.sh`)
+### 1. Extract Prompts to Text (`01_extract_prompts_to_text.sh`)
+Extracts prompts from CSV files to plain text files for translation and alignment.
+
+### 2. Translate Files (`02_translate_files.sh`)
+Translates the text files between Hindi and English using Google Translate API.
+
+### 3. Generate Alignments (`03_generate_alignments.sh`)
+Generates word alignments between the original texts and their translations.
+
+### 4. Generate Code-Switched Outputs (`04_generate_code_switched_outputs.sh`)
+Uses the ezswitch library to generate code-switched outputs based on the alignments.
+
+### 5. Language Detection (`05_language_detection.sh`)
 Analyzes the language composition of each prompt, identifying Hindi (Devanagari & Romanized) and English words.
 
-### 3. Code-Switch Filtering (`03_filter_code_switch.sh`)
+### 6. Code-Switch Filtering (`06_filter_code_switch.sh`)
 Filters prompts to retain balanced code-switched content based on language composition.
 
-### 4. Response Generation (`04_generate_responses.sh`)
+### 7. Response Generation (`07_generate_responses.sh`)
 Generates responses from language models (LLaMA, Aya) for the filtered prompts.
 
-### 5. Toxicity Analysis (`05_analyze_toxicity.sh`)
+### 8. Toxicity Analysis (`08_analyze_toxicity.sh`)
 Analyzes toxicity metrics for both prompts and model responses using the Perspective API.
 
-### 6. Visualization (`06_visualization.sh`)
+### 9. Visualization (`09_visualization.sh`)
 Creates visualizations comparing toxicity between monolingual and code-switched content.
 
 ## Running the Analysis
@@ -132,17 +156,12 @@ You can run the full pipeline sequentially:
 
 ```bash
 # Run each script in order
-sbatch scripts/01_extract_rtp_data.sh
+sbatch scripts/00_extract_rtp_data.sh
 # Wait for completion, then
-sbatch scripts/02_language_detection.sh
+sbatch scripts/01_extract_prompts_to_text.sh
+# Wait for completion, then
+sbatch scripts/02_translate_files.sh
 # And so on...
-```
-
-Alternatively, for testing purposes with Hindi prompts only:
-
-```bash
-# For testing with Hindi prompts only
-sbatch scripts/test_primary_key_hindi_only.sh
 ```
 
 Results will be stored in the `data/output/` directory, including:
@@ -173,16 +192,26 @@ The pipeline implements primary key tracking to ensure data consistency througho
 
 A verification report is generated to confirm the integrity of this tracking.
 
-## Repository Cleanup Details
+## Language Extensibility
 
-This repository has been cleaned up to improve organization and maintainability. Here's why certain files were removed:
+The pipeline is designed to be extensible to other language pairs beyond Hindi-English. To use a different language pair:
 
-1. **Redundant Scripts**: Multiple numbered scripts (e.g., `0_extract_prompts.sh` through `22_model_toxicity_analysis_only.sh`) were consolidated into more descriptive, modular scripts with clear functional purposes. The original scripts often contained redundant or overlapping functionality.
+1. Update the language variables in each script:
+   ```bash
+   # Define languages - can be modified for other language pairs
+   BASE_LANG="your_base_language"
+   SOURCE_LANG="your_source_language"
+   
+   # Define language codes for file naming/translation
+   BASE_LANG_CODE="base_code"  # e.g., "es" for Spanish
+   SOURCE_LANG_CODE="source_code"  # e.g., "de" for German
+   ```
 
-2. **Superseded Testing Scripts**: Files like `test_primary_key_100_points.sh` and `test_primary_key_limited_requests.sh` were superseded by the more comprehensive `test_primary_key_hindi_only.sh`, which includes additional verification and visualization steps.
+2. Ensure you have the corresponding RTP-LX dataset files for your languages:
+   ```
+   RTP_LX_XX.json  # where XX is your language code, e.g., ES for Spanish
+   ```
 
-3. **Non-ID-Tracking Files**: Early versions of processing scripts (e.g., `language_detection.py` instead of `language_detection_with_id.py`) lacked the primary key tracking functionality necessary for proper end-to-end analysis. Only the ID-tracking versions are kept for consistency.
+3. The rest of the pipeline will automatically adapt to the new language pair.
 
-4. **Legacy Analysis Files**: Older scripts with outdated approaches or partial implementations were removed to avoid confusion, as they've been replaced by more sophisticated versions that incorporate best practices.
-
-The current structure focuses only on the essential components needed for the analysis pipeline, making it easier to understand and maintain. 
+Note: For best results, ensure the FastText language identification model supports your target languages. 

@@ -1,272 +1,0 @@
-============================================================================================== 
-Warning! Mixing Conda and module environments may lead to corruption of the
-user environment. 
-We do not recommend users mixing those two environments unless absolutely
-necessary. Note that 
-SURF does not provide any support for Conda environment.
-For more information, please refer to our software policy page:
-https://servicedesk.surf.nl/wiki/display/WIKI/Software+policy+Snellius#SoftwarepolicySnellius-UseofAnacondaandMinicondaenvironmentsonSnellius 
-
-Remember that many packages have already been installed on the system and can
-be loaded using 
-the 'module load <package__name>' command. If you are uncertain if a package is
-already available 
-on the system, please use 'module avail' or 'module spider' to search for it.
-============================================================================================== 
-Extracting first 100 lines from Hindi prompts...
-Extracting first 100 lines from English prompts...
-Step 1: Adding primary keys to original prompts...
-Created CSV files with primary keys:
-  - Hindi prompts: data/output/test_primary_key_100/hindi_prompts_with_id.csv
-  - English prompts: data/output/test_primary_key_100/english_prompts_with_id.csv
-  - All prompts: data/output/test_primary_key_100/all_prompts_with_id.csv
-Step 2: Detecting languages in Hindi prompts...
-Loading FastText model from lid.176.bin...
-Loaded 235892 English words from NLTK
-Reading input file: data/output/test_primary_key_100/hindi_prompts_with_id.csv
-Processing sentences and counting words by language...
-  0%|          | 0/99 [00:00<?, ?it/s]100%|██████████| 99/99 [00:00<00:00, 1699.25it/s]
-Saving processed data to data/output/test_primary_key_100/hindi/language_detection.csv
-
-===== Summary Statistics =====
-Total sentences processed: 99
-Average Devanagari Hindi words per sentence: 6.56
-Average Romanized Hindi words per sentence: 0.00
-Average Total Hindi words per sentence: 6.56
-Average English words per sentence: 2.66
-
-===== Sentence Categories =====
-Sentences with only Hindi (no English): 5 (5.05%)
-Sentences with only English (no Hindi): 1 (1.01%)
-Sentences with both Hindi and English: 93 (93.94%)
-Sentences with neither Hindi nor English: 0 (0.00%)
-
-===== Hindi Type Breakdown =====
-Sentences with only Devanagari Hindi: 98 (98.99%)
-Sentences with only Romanized Hindi: 0 (0.00%)
-Sentences with both Devanagari and Romanized Hindi: 0 (0.00%)
-Step 3: Detecting languages in English prompts...
-Loading FastText model from lid.176.bin...
-Loaded 235892 English words from NLTK
-Reading input file: data/output/test_primary_key_100/english_prompts_with_id.csv
-Processing sentences and counting words by language...
-  0%|          | 0/99 [00:00<?, ?it/s]100%|██████████| 99/99 [00:00<00:00, 1833.83it/s]
-Saving processed data to data/output/test_primary_key_100/english/language_detection.csv
-
-===== Summary Statistics =====
-Total sentences processed: 99
-Average Devanagari Hindi words per sentence: 0.01
-Average Romanized Hindi words per sentence: 0.49
-Average Total Hindi words per sentence: 0.51
-Average English words per sentence: 8.89
-
-===== Sentence Categories =====
-Sentences with only Hindi (no English): 0 (0.00%)
-Sentences with only English (no Hindi): 62 (62.63%)
-Sentences with both Hindi and English: 37 (37.37%)
-Sentences with neither Hindi nor English: 0 (0.00%)
-
-===== Hindi Type Breakdown =====
-Sentences with only Devanagari Hindi: 0 (0.00%)
-Sentences with only Romanized Hindi: 36 (36.36%)
-Sentences with both Devanagari and Romanized Hindi: 1 (1.01%)
-Step 4: Filtering Hindi prompts...
-Reading input file: data/output/test_primary_key_100/hindi/language_detection.csv
-Original number of sentences: 99
-
-===== Filtering Summary =====
-Removed English-only sentences: 1 (1.01%)
-Removed Hindi-only sentences: 5 (5.05%)
-Removed English-dominant sentences: 0 (0.00%)
-Total sentences removed: 6 (6.06%)
-Remaining sentences: 93 (93.94%)
-
-Filtered data saved to: data/output/test_primary_key_100/hindi/filtered_output.csv
-Filter status saved to: data/output/test_primary_key_100/hindi/filtered_output_filter_status.csv
-Step 5: Filtering English prompts...
-Reading input file: data/output/test_primary_key_100/english/language_detection.csv
-Original number of sentences: 99
-
-===== Filtering Summary =====
-Removed English-only sentences: 62 (62.63%)
-Removed Hindi-only sentences: 0 (0.00%)
-Removed English-dominant sentences: 35 (35.35%)
-Total sentences removed: 97 (97.98%)
-Remaining sentences: 2 (2.02%)
-
-Filtered data saved to: data/output/test_primary_key_100/english/filtered_output.csv
-Filter status saved to: data/output/test_primary_key_100/english/filtered_output_filter_status.csv
-Step 6: Generating LLaMA responses for Hindi prompts...
-Sampled 10 prompts for quick testing
-Using Hugging Face token from environment variable
-Loading meta-llama/Meta-Llama-3-8B-Instruct tokenizer...
-Loading meta-llama/Meta-Llama-3-8B-Instruct model...
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:02<00:07,  2.65s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:05<00:05,  2.87s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:08<00:02,  2.90s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:09<00:00,  1.98s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:09<00:00,  2.30s/it]
-Reading input file: data/output/test_primary_key_100/hindi/sample_10_filtered.csv
-Generating responses using meta-llama/Meta-Llama-3-8B-Instruct...
-  0%|          | 0/10 [00:00<?, ?it/s] 10%|█         | 1/10 [00:04<00:36,  4.10s/it] 20%|██        | 2/10 [00:06<00:27,  3.38s/it] 30%|███       | 3/10 [00:09<00:22,  3.14s/it] 40%|████      | 4/10 [00:12<00:18,  3.03s/it] 50%|█████     | 5/10 [00:15<00:14,  2.98s/it] 60%|██████    | 6/10 [00:18<00:11,  2.94s/it] 70%|███████   | 7/10 [00:21<00:08,  2.92s/it] 80%|████████  | 8/10 [00:24<00:05,  2.90s/it] 90%|█████████ | 9/10 [00:27<00:02,  2.89s/it]100%|██████████| 10/10 [00:29<00:00,  2.88s/it]100%|██████████| 10/10 [00:29<00:00,  2.99s/it]
-Saving responses to data/output/test_primary_key_100/model_responses/llama_hindi_responses.csv
-Step 7: Generating LLaMA responses for English prompts...
-Sampled 2 prompts for quick testing
-Using Hugging Face token from environment variable
-Loading meta-llama/Meta-Llama-3-8B-Instruct tokenizer...
-Loading meta-llama/Meta-Llama-3-8B-Instruct model...
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.06s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.06s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.04s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.35it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.17it/s]
-Reading input file: data/output/test_primary_key_100/english/sample_10_filtered.csv
-Generating responses using meta-llama/Meta-Llama-3-8B-Instruct...
-  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:03<00:03,  3.64s/it]100%|██████████| 2/2 [00:06<00:00,  3.20s/it]100%|██████████| 2/2 [00:06<00:00,  3.26s/it]
-Saving responses to data/output/test_primary_key_100/model_responses/llama_english_responses.csv
-Step 8: Generating Aya responses for Hindi prompts...
-Using Hugging Face token from environment variable
-Loading CohereForAI/aya-23-8B tokenizer...
-Loading CohereForAI/aya-23-8B model...
-Downloading shards:   0%|          | 0/4 [00:00<?, ?it/s]Downloading shards:  25%|██▌       | 1/4 [00:00<00:00,  7.86it/s]Downloading shards:  50%|█████     | 2/4 [00:00<00:00,  7.88it/s]Downloading shards:  75%|███████▌  | 3/4 [00:00<00:00,  7.74it/s]Downloading shards: 100%|██████████| 4/4 [00:00<00:00,  7.82it/s]Downloading shards: 100%|██████████| 4/4 [00:00<00:00,  7.81it/s]
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:05<00:16,  5.51s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:11<00:11,  5.51s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:16<00:05,  5.57s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:18<00:00,  3.94s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:18<00:00,  4.53s/it]
-Reading input file: data/output/test_primary_key_100/hindi/sample_10_filtered.csv
-Generating responses using CohereForAI/aya-23-8B...
-  0%|          | 0/10 [00:00<?, ?it/s] 10%|█         | 1/10 [00:04<00:39,  4.42s/it] 20%|██        | 2/10 [00:07<00:31,  3.92s/it] 30%|███       | 3/10 [00:11<00:26,  3.76s/it] 40%|████      | 4/10 [00:15<00:22,  3.68s/it] 50%|█████     | 5/10 [00:18<00:18,  3.64s/it] 60%|██████    | 6/10 [00:22<00:14,  3.61s/it] 70%|███████   | 7/10 [00:25<00:10,  3.60s/it] 80%|████████  | 8/10 [00:29<00:07,  3.59s/it] 90%|█████████ | 9/10 [00:32<00:03,  3.58s/it]100%|██████████| 10/10 [00:36<00:00,  3.57s/it]100%|██████████| 10/10 [00:36<00:00,  3.65s/it]
-Saving responses to data/output/test_primary_key_100/model_responses/aya_hindi_responses.csv
-Step 9: Generating Aya responses for English prompts...
-Using Hugging Face token from environment variable
-Loading CohereForAI/aya-23-8B tokenizer...
-Loading CohereForAI/aya-23-8B model...
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:02<00:06,  2.15s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:04<00:04,  2.15s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:06<00:02,  2.17s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:07<00:00,  1.54s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:07<00:00,  1.77s/it]
-Reading input file: data/output/test_primary_key_100/english/sample_10_filtered.csv
-Generating responses using CohereForAI/aya-23-8B...
-  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:04<00:04,  4.36s/it]100%|██████████| 2/2 [00:07<00:00,  3.86s/it]100%|██████████| 2/2 [00:07<00:00,  3.94s/it]
-Saving responses to data/output/test_primary_key_100/model_responses/aya_english_responses.csv
-Step 10: Analyzing toxicity of Hindi prompts...
-Error: No Perspective API key provided
-Step 11: Analyzing toxicity of English prompts...
-Error: No Perspective API key provided
-Step 12: Analyzing toxicity of LLaMA responses for Hindi prompts...
-Error: No Perspective API key provided
-Step 13: Analyzing toxicity of LLaMA responses for English prompts...
-Error: No Perspective API key provided
-Step 14: Analyzing toxicity of Aya responses for Hindi prompts...
-Error: No Perspective API key provided
-Step 15: Analyzing toxicity of Aya responses for English prompts...
-Error: No Perspective API key provided
-Step 16: Comparing toxicity for Hindi prompts and LLaMA responses...
-Reading prompt toxicity file: data/output/test_primary_key_100/toxicity_analysis/hindi_prompt_toxicity.csv
-Traceback (most recent call last):
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 229, in <module>
-    main() 
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 226, in main
-    compare_toxicity(args.prompt_file, args.response_file, args.output_dir, args.model_name)
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 24, in compare_toxicity
-    prompt_df = pd.read_csv(prompt_file)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
-    return _read(filepath_or_buffer, kwds)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
-    parser = TextFileReader(filepath_or_buffer, **kwds)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
-    self._engine = self._make_engine(f, self.engine)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
-    self.handles = get_handle(
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
-    handle = open(
-FileNotFoundError: [Errno 2] No such file or directory: 'data/output/test_primary_key_100/toxicity_analysis/hindi_prompt_toxicity.csv'
-Step 17: Comparing toxicity for Hindi prompts and Aya responses...
-Reading prompt toxicity file: data/output/test_primary_key_100/toxicity_analysis/hindi_prompt_toxicity.csv
-Traceback (most recent call last):
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 229, in <module>
-    main() 
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 226, in main
-    compare_toxicity(args.prompt_file, args.response_file, args.output_dir, args.model_name)
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 24, in compare_toxicity
-    prompt_df = pd.read_csv(prompt_file)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
-    return _read(filepath_or_buffer, kwds)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
-    parser = TextFileReader(filepath_or_buffer, **kwds)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
-    self._engine = self._make_engine(f, self.engine)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
-    self.handles = get_handle(
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
-    handle = open(
-FileNotFoundError: [Errno 2] No such file or directory: 'data/output/test_primary_key_100/toxicity_analysis/hindi_prompt_toxicity.csv'
-Step 18: Comparing toxicity for English prompts and LLaMA responses...
-Reading prompt toxicity file: data/output/test_primary_key_100/toxicity_analysis/english_prompt_toxicity.csv
-Traceback (most recent call last):
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 229, in <module>
-    main() 
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 226, in main
-    compare_toxicity(args.prompt_file, args.response_file, args.output_dir, args.model_name)
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 24, in compare_toxicity
-    prompt_df = pd.read_csv(prompt_file)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
-    return _read(filepath_or_buffer, kwds)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
-    parser = TextFileReader(filepath_or_buffer, **kwds)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
-    self._engine = self._make_engine(f, self.engine)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
-    self.handles = get_handle(
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
-    handle = open(
-FileNotFoundError: [Errno 2] No such file or directory: 'data/output/test_primary_key_100/toxicity_analysis/english_prompt_toxicity.csv'
-Step 19: Comparing toxicity for English prompts and Aya responses...
-Reading prompt toxicity file: data/output/test_primary_key_100/toxicity_analysis/english_prompt_toxicity.csv
-Traceback (most recent call last):
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 229, in <module>
-    main() 
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 226, in main
-    compare_toxicity(args.prompt_file, args.response_file, args.output_dir, args.model_name)
-  File "/gpfs/home6/tchakravorty/code-switch-thesis/src/compare_toxicity_with_id.py", line 24, in compare_toxicity
-    prompt_df = pd.read_csv(prompt_file)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
-    return _read(filepath_or_buffer, kwds)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
-    parser = TextFileReader(filepath_or_buffer, **kwds)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
-    self._engine = self._make_engine(f, self.engine)
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
-    self.handles = get_handle(
-  File "/home/tchakravorty/.conda/envs/code-switch/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
-    handle = open(
-FileNotFoundError: [Errno 2] No such file or directory: 'data/output/test_primary_key_100/toxicity_analysis/english_prompt_toxicity.csv'
-Step 20: Creating verification report for primary key tracking...
-Primary key verification report saved to data/output/test_primary_key_100/primary_key_verification.json
-
-Summary:
-Hindi prompts with ID: OK - 99 IDs
-English prompts with ID: OK - 99 IDs
-Hindi language detection: OK - 99 IDs
-English language detection: OK - 99 IDs
-Hindi filtered output: OK - 93 IDs
-English filtered output: OK - 2 IDs
-Hindi sample 10 filtered: OK - 10 IDs
-English sample 10 filtered: OK - 2 IDs
-LLaMA Hindi responses: OK - 10 IDs
-LLaMA English responses: OK - 2 IDs
-Aya Hindi responses: OK - 10 IDs
-Aya English responses: OK - 2 IDs
-Hindi prompt toxicity: File not found - N/A IDs
-English prompt toxicity: File not found - N/A IDs
-LLaMA Hindi toxicity: File not found - N/A IDs
-LLaMA English toxicity: File not found - N/A IDs
-Aya Hindi toxicity: File not found - N/A IDs
-Aya English toxicity: File not found - N/A IDs
-
-Verifying primary key tracking consistency between paired files:
-Hindi filtered -> LLaMA Hindi: True (10 IDs in filtered, 10 IDs in LLaMA)
-English filtered -> LLaMA English: True (2 IDs in filtered, 2 IDs in LLaMA)
-Test analysis complete! Results saved to data/output/test_primary_key_100
-Check data/output/test_primary_key_100/primary_key_verification.json for primary key tracking information
-
-JOB STATISTICS
-==============
-Job ID: 10855801
-Cluster: snellius
-User/Group: tchakravorty/tchakravorty
-State: RUNNING
-Nodes: 1
-Cores per node: 18
-CPU Utilized: 00:00:00
-CPU Efficiency: 0.00% of 00:53:24 core-walltime
-Job Wall-clock time: 00:02:58
-Memory Utilized: 0.00 MB (estimated maximum)
-Memory Efficiency: 0.00% of 32.00 GB (32.00 GB/node)
-WARNING: Efficiency statistics may be misleading for RUNNING jobs.

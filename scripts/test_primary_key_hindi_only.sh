@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --time=4:00:00
-#SBATCH --partition=gpu
+#SBATCH --partition=gpu_a100
 #SBATCH --gpus=1
 #SBATCH --job-name=test_primary_key_hindi
 #SBATCH --mem=32G
