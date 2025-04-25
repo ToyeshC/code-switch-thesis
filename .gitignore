@@ -2,3 +2,14 @@ data/
 ezswitch/
 lid.176.bin
 src/config.py
+config.py
+
+=4.30.0
+Copy_of_IndicLID_Inference.ipynb
+IndicLID/
+__pycache__/
+code-switch-thesis-backup-20250402/
+en_hi_results_vera/
+job_outputs/
+new_outputs/
+venv/

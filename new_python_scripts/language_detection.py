@@ -174,28 +174,17 @@ def main():
     
     print("Processing sentences and counting words by language...")
     
-    # Apply the processing function to the appropriate column
-    text_column = None
+    # Process the generated column
     if 'generated' in df.columns:
-        text_column = 'generated'
-    else:
-        print("Warning: 'generated' column not found. Looking for text columns...")
-        # Try to find a column that might contain sentences
-        text_columns = [col for col in df.columns if df[col].dtype == 'object']
-        if text_columns:
-            print(f"Found potential text columns: {text_columns}")
-            text_column = text_columns[0]
-            print(f"Processing the first text column: {text_column}")
-    
-    if text_column:
+        print("Processing 'generated' column...")
         # Use tqdm for progress tracking
         for i in tqdm(range(len(df))):
-            hindi_count, english_count, romanized_hindi_count = process_sentence(df.loc[i, text_column])
+            hindi_count, english_count, romanized_hindi_count = process_sentence(df.loc[i, 'generated'])
             df.loc[i, 'hindi_word_count'] = hindi_count
             df.loc[i, 'english_word_count'] = english_count
             df.loc[i, 'romanized_hindi_count'] = romanized_hindi_count
     else:
-        print("Error: No suitable text column found for processing.")
+        print("Error: 'generated' column not found in the input file.")
         return
     
     # Calculate total Hindi count (Devanagari + Romanized)
@@ -255,8 +244,6 @@ def main():
     print(f"Sentences with only Devanagari Hindi: {only_devanagari} ({only_devanagari/len(df)*100:.2f}%)")
     print(f"Sentences with only Romanized Hindi: {only_romanized} ({only_romanized/len(df)*100:.2f}%)")
     print(f"Sentences with both Hindi types: {both_hindi_types} ({both_hindi_types/len(df)*100:.2f}%)")
-    
-    print("Processing complete!")
 
 if __name__ == "__main__":
     main() 

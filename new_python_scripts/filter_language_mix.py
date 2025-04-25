@@ -92,4 +92,4 @@ if __name__ == "__main__":
     parser.add_argument("--output", required=True, help="Path to save the filtered CSV file")
     
     args = parser.parse_args()
-    filter_sentences(args.input, args.output)
+    filter_sentences(args.input, args.output) 
