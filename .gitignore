@@ -13,3 +13,15 @@ en_hi_results_vera/
 job_outputs/
 new_outputs/
 venv/
+
+tweets_outputs/
+tweets_job_outputs/
+temp_scripts/perspective_analysis_outputs/
+temp_scripts/zzzz.csv
+temp_scripts/model_distribution_pie.png
+temp_scripts/toxicity_analysis_outputs/
+temp_scripts/code-switching-450110-70b9e6bd152f.json
+output/
+python_scripts/output/
+slurm-11391697.out
+toxicity_comparison.png

@@ -8,8 +8,67 @@ from huggingface_hub import login
 import os
 import time
 from datetime import datetime, timedelta
+import json
+from cohere import Client
 
-def generate_continuations_local(input_file, output_file, model_name, text_column, max_new_tokens=50, temperature=0.7, max_rows=None, token_file=None):
+def load_model_and_tokenizer(model_name, use_cohere_tokenizer=False, rope_scaling=None):
+    print(f"\nLoading model: {model_name}")
+    print("Loading tokenizer...")
+    
+    if use_cohere_tokenizer:
+        from cohere_tokenizer import CohereTokenizer
+        tokenizer = CohereTokenizer.from_pretrained(model_name)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+    
+    print("Loading model...")
+    
+    # Configure model loading parameters
+    model_kwargs = {
+        "torch_dtype": torch.float16,
+        "device_map": "auto"
+    }
+    
+    # Add RoPE scaling if specified
+    if rope_scaling:
+        try:
+            if isinstance(rope_scaling, str):
+                rope_scaling = json.loads(rope_scaling)
+            model_kwargs["rope_scaling"] = rope_scaling
+        except json.JSONDecodeError:
+            print(f"Warning: Invalid rope_scaling JSON format: {rope_scaling}")
+    
+    try:
+        model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
+        print("Model loaded successfully.")
+        return model, tokenizer
+    except Exception as e:
+        print(f"Error loading model {model_name}: {str(e)}")
+        return None, None
+
+def generate_continuation(model, tokenizer, text, max_tokens=50, temperature=0.7):
+    try:
+        inputs = tokenizer(text, return_tensors="pt").to(model.device)
+        
+        # Generate with the same parameters as the API
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_tokens,
+            temperature=temperature,
+            top_p=0.9,
+            do_sample=True,
+            pad_token_id=tokenizer.eos_token_id
+        )
+        
+        # Decode only the new tokens
+        new_tokens = outputs[0][inputs.input_ids.shape[1]:]
+        continuation = tokenizer.decode(new_tokens, skip_special_tokens=True)
+        return continuation.strip()
+    except Exception as e:
+        print(f"Error generating continuation: {str(e)}")
+        return f"ERROR: Generation failed - {str(e)}"
+
+def generate_continuations_local(input_file, output_file, model_name, text_column, max_new_tokens=50, temperature=0.7, max_rows=None, token_file=None, use_cohere_tokenizer=False, rope_scaling=None):
     """
     Generate continuations locally using transformers library.
     
@@ -22,6 +81,8 @@ def generate_continuations_local(input_file, output_file, model_name, text_colum
         temperature (float): Temperature for generation
         max_rows (int): Maximum number of rows to process (None for all)
         token_file (str, optional): Path to Hugging Face token file.
+        use_cohere_tokenizer (bool): Whether to use Cohere tokenizer for Aya model
+        rope_scaling (str, optional): RoPE scaling configuration as JSON string
     """
     # --- Authentication --- 
     # Handle token file if provided or use environment variable
@@ -45,29 +106,14 @@ def generate_continuations_local(input_file, output_file, model_name, text_colum
         login(token=token)
     
     # --- Model Loading --- 
-    model_config = {
-        "torch_dtype": torch.float16,
-        "device_map": "auto",  # Automatically distribute across GPUs
-        "low_cpu_mem_usage": True, # Optimization for loading large models
-        "trust_remote_code": True # Needed for some models like Aya
-    }
+    model, tokenizer = load_model_and_tokenizer(
+        model_name,
+        use_cohere_tokenizer=use_cohere_tokenizer,
+        rope_scaling=rope_scaling
+    )
     
-    print(f"\nLoading model: {model_name}")
-    try:
-        print("Loading tokenizer...")
-        # Trust remote code for tokenizer as well, useful for models like Aya
-        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-        
-        print("Loading model...")
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name, 
-            **model_config
-        )
-        print("Model loaded successfully.")
-        
-    except Exception as e:
-        print(f"\nError loading model {model_name}: {e}")
-        print("Skipping this model.")
+    if model is None or tokenizer is None:
+        print(f"Skipping this model.")
         # Create a placeholder dataframe with error
         try: # Try reading input even on model load fail
             df_error = pd.read_csv(input_file)
@@ -75,7 +121,7 @@ def generate_continuations_local(input_file, output_file, model_name, text_colum
                 df_error = df_error.head(max_rows)
             model_short = model_name.split('/')[-1].lower().replace("-","")
             continuation_col = f"{model_short}_continuation"
-            df_error[continuation_col] = f"ERROR: Model loading failed - {e}"
+            df_error[continuation_col] = f"ERROR: Model loading failed - {str(e)}"
             print(f"Saving error state to {output_file}")
             # Ensure directory exists before saving error file
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -127,23 +173,15 @@ def generate_continuations_local(input_file, output_file, model_name, text_colum
             df.loc[i, continuation_col] = "<EMPTY_INPUT>"
             continue
         
-        # Prepare input for the model
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=1024).to(model.device)
-        
         # Generate continuation
         try:
-            with torch.no_grad():
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=max_new_tokens,
-                    temperature=temperature,
-                    do_sample=True,
-                    top_p=0.95,
-                    pad_token_id=tokenizer.eos_token_id
-                )
-            
-            generated_tokens = outputs[0][inputs.input_ids.shape[-1]:] 
-            continuation = tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
+            continuation = generate_continuation(
+                model, 
+                tokenizer, 
+                text, 
+                max_tokens=max_new_tokens,
+                temperature=temperature
+            )
             
             df.loc[i, continuation_col] = continuation
             processed_count += 1
@@ -185,6 +223,8 @@ if __name__ == "__main__":
     parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for generation")
     parser.add_argument("--max_rows", type=int, default=None, help="Maximum number of rows to process")
     parser.add_argument("--token_file", type=str, default=None, help="Path to HF token file (optional)")
+    parser.add_argument("--use_cohere_tokenizer", action="store_true", help="Use Cohere tokenizer for Aya model")
+    parser.add_argument("--rope_scaling", help="RoPE scaling configuration as JSON string")
     
     args = parser.parse_args()
     
@@ -196,5 +236,7 @@ if __name__ == "__main__":
         args.max_tokens, 
         args.temperature,
         args.max_rows,
-        args.token_file
+        args.token_file,
+        args.use_cohere_tokenizer,
+        args.rope_scaling
     ) 
