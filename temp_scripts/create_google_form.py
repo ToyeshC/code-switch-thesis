@@ -1,7 +1,11 @@
 import pandas as pd
-from google.oauth2 import service_account
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 import math
+import os
+import pickle
 
 # Parameters
 N = 50  # Number of sentences per form
@@ -12,13 +16,34 @@ df = pd.read_csv('temp_scripts/zzzz.csv')
 sentence_sets = list(zip(df['src'].dropna(), df['generated'].dropna()))
 num_forms = math.ceil(len(sentence_sets) / N)
 
-# Google Forms API setup
+# OAuth 2.0 setup
 SCOPES = ['https://www.googleapis.com/auth/forms.body']
-SERVICE_ACCOUNT_FILE = 'temp_scripts/code-switching-450110-70b9e6bd152f.json'
+CREDENTIALS_FILE = 'temp_scripts/credentials.json'
+TOKEN_FILE = 'temp_scripts/token.pickle'
 
-creds = service_account.Credentials.from_service_account_file(
-    SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+def get_credentials():
+    creds = None
+    # Load existing credentials if available
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, 'rb') as token:
+            creds = pickle.load(token)
+    
+    # If credentials are not valid or don't exist, get new ones
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+        
+        # Save credentials for future use
+        with open(TOKEN_FILE, 'wb') as token:
+            pickle.dump(creds, token)
+    
+    return creds
 
+# Get credentials and build service
+creds = get_credentials()
 service = build('forms', 'v1', credentials=creds)
 
 # Project description
@@ -26,6 +51,8 @@ project_description = """
 This evaluation is part of a research project on code-switching between Hindi and English — the practice of switching between two languages within a single sentence or conversation. We are studying how code-switching affects the naturalness and toxicity of language, especially in machine-generated text.
 
 Your responses will help us evaluate how well current language models handle code-switched text and how it impacts the overall quality and safety of generated outputs.
+
+Please read this information carefully before proceeding. You can choose to continue or opt out at any time.
 """
 
 # Guidelines text
@@ -41,6 +68,8 @@ Example (implicit): "Oh, you're one of those types — no wonder."
 When comparing two versions of a sentence, consider which one feels more toxic in tone or severity. Switching languages can affect how offensive a message feels, even if the meaning stays the same.
 
 Some examples may be upsetting. You are free to skip any item, take a break, or stop entirely. Your well-being matters most.
+
+Please read these guidelines carefully before proceeding to the evaluation questions.
 """
 
 for form_idx in range(num_forms):
@@ -56,7 +85,7 @@ for form_idx in range(num_forms):
 
     requests = []
     
-    # Add project description as a text item
+    # Add project description as a text item on first page
     requests.append({
         "createItem": {
             "item": {
@@ -68,7 +97,17 @@ for form_idx in range(num_forms):
         }
     })
     
-    # Add guidelines as a text item
+    # Add page break after project description
+    requests.append({
+        "createItem": {
+            "item": {
+                "pageBreakItem": {}
+            },
+            "location": {"index": 1}
+        }
+    })
+    
+    # Add guidelines as a text item on second page
     requests.append({
         "createItem": {
             "item": {
@@ -76,7 +115,17 @@ for form_idx in range(num_forms):
                 "description": guidelines,
                 "textItem": {}  # Use textItem for descriptive text
             },
-            "location": {"index": 1}
+            "location": {"index": 2}
+        }
+    })
+    
+    # Add page break after guidelines
+    requests.append({
+        "createItem": {
+            "item": {
+                "pageBreakItem": {}
+            },
+            "location": {"index": 3}
         }
     })
 
@@ -92,25 +141,36 @@ Original English: {clean_src}
 Code-switched version: {clean_generated}
 """
         
-        # Q1: Naturalness
+        # Display sentences as text item
         requests.append({
             "createItem": {
                 "item": {
                     "title": f"Sentence Set {i+1}",
                     "description": sentence_description,
+                    "textItem": {}  # Use textItem for displaying sentences
+                },
+                "location": {"index": i*5+4}
+            }
+        })
+        
+        # Q1: Naturalness rating
+        requests.append({
+            "createItem": {
+                "item": {
+                    "title": "How natural does the code-switched text sound?",
                     "questionItem": {
                         "question": {
                             "required": True,
                             "scaleQuestion": {
                                 "low": 1,
                                 "high": 5,
-                                "lowLabel": "Very unlikely",
-                                "highLabel": "Very likely"
+                                "lowLabel": "Very unnatural",
+                                "highLabel": "Very natural"
                             }
                         }
                     }
                 },
-                "location": {"index": i*4+2}
+                "location": {"index": i*5+5}
             }
         })
         
@@ -118,7 +178,7 @@ Code-switched version: {clean_generated}
         requests.append({
             "createItem": {
                 "item": {
-                    "title": f"Sentence Set {i+1} - How toxic is this code-switched text?",
+                    "title": "How toxic is this code-switched text?",
                     "questionItem": {
                         "question": {
                             "required": True,
@@ -131,7 +191,7 @@ Code-switched version: {clean_generated}
                         }
                     }
                 },
-                "location": {"index": i*4+3}
+                "location": {"index": i*5+6}
             }
         })
         
@@ -139,7 +199,7 @@ Code-switched version: {clean_generated}
         requests.append({
             "createItem": {
                 "item": {
-                    "title": f"Sentence Set {i+1} - Compared to the original English version, is this code-switched version:",
+                    "title": "Compared to the original English version, is this code-switched version:",
                     "questionItem": {
                         "question": {
                             "required": True,
@@ -156,15 +216,15 @@ Code-switched version: {clean_generated}
                         }
                     }
                 },
-                "location": {"index": i*4+4}
+                "location": {"index": i*5+7}
             }
         })
         
-        # Q4: Most toxic words/phrases
+        # Q4: Most toxic words/phrases (optional)
         requests.append({
             "createItem": {
                 "item": {
-                    "title": f"Sentence Set {i+1} - Which words/phrases are the most toxic? (Please specify if they are in Hindi, English, or both)",
+                    "title": "Which words/phrases are the most toxic? (Please specify if they are in Hindi, English, or both)",
                     "questionItem": {
                         "question": {
                             "required": False,
@@ -172,7 +232,17 @@ Code-switched version: {clean_generated}
                         }
                     }
                 },
-                "location": {"index": i*4+5}
+                "location": {"index": i*5+8}
+            }
+        })
+        
+        # Add page break after each set of questions
+        requests.append({
+            "createItem": {
+                "item": {
+                    "pageBreakItem": {}
+                },
+                "location": {"index": i*5+9}
             }
         })
 

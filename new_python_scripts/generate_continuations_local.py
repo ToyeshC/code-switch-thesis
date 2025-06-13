@@ -2,63 +2,130 @@ import pandas as pd
 import argparse
 import torch
 import gc
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaForCausalLM, LlamaTokenizer
 from tqdm import tqdm
 from huggingface_hub import login
 import os
 import time
 from datetime import datetime, timedelta
 import json
-from cohere import Client
 
-def load_model_and_tokenizer(model_name, use_cohere_tokenizer=False, rope_scaling=None):
+def load_model_and_tokenizer(model_name, rope_scaling=None):
     print(f"\nLoading model: {model_name}")
     print("Loading tokenizer...")
     
-    if use_cohere_tokenizer:
-        from cohere_tokenizer import CohereTokenizer
-        tokenizer = CohereTokenizer.from_pretrained(model_name)
-    else:
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-    
-    print("Loading model...")
-    
-    # Configure model loading parameters
-    model_kwargs = {
-        "torch_dtype": torch.float16,
-        "device_map": "auto"
-    }
-    
-    # Add RoPE scaling if specified
-    if rope_scaling:
-        try:
-            if isinstance(rope_scaling, str):
-                rope_scaling = json.loads(rope_scaling)
-            model_kwargs["rope_scaling"] = rope_scaling
-        except json.JSONDecodeError:
-            print(f"Warning: Invalid rope_scaling JSON format: {rope_scaling}")
-    
     try:
-        model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
+        # Special handling for different models
+        if "llama-3.1" in model_name.lower():
+            print("Loading Llama 3.1 with special configuration...")
+            # Use the specific Llama tokenizer and model classes
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            
+            # Load model with modified config to handle RoPE scaling
+            from transformers import LlamaConfig
+            config = LlamaConfig.from_pretrained(model_name)
+            
+            # Simplify the rope_scaling to what transformers expects
+            if hasattr(config, 'rope_scaling') and config.rope_scaling:
+                print(f"Original RoPE scaling: {config.rope_scaling}")
+                # Convert to the format transformers expects
+                config.rope_scaling = {
+                    "type": "linear",
+                    "factor": config.rope_scaling.get('factor', 8.0)
+                }
+                print(f"Modified RoPE scaling: {config.rope_scaling}")
+            
+            model = LlamaForCausalLM.from_pretrained(
+                model_name,
+                config=config,
+                torch_dtype=torch.float16,
+                device_map="auto",
+                low_cpu_mem_usage=True
+            )
+            
+        elif "aya" in model_name.lower():
+            print("Loading Aya model with special configuration...")
+            # For Aya, we need to handle the CohereTokenizer properly
+            # Based on Hugging Face documentation, we need transformers==4.41.1
+            try:
+                # First try the recommended approach from Hugging Face docs
+                tokenizer = AutoTokenizer.from_pretrained(
+                    model_name, 
+                    trust_remote_code=True
+                )
+                print("Successfully loaded Aya tokenizer")
+            except Exception as tokenizer_error:
+                print(f"Aya tokenizer loading failed: {tokenizer_error}")
+                print("This might be due to transformers version compatibility.")
+                print("Aya model requires transformers>=4.41.0")
+                raise tokenizer_error
+            
+            try:
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    torch_dtype=torch.float16,
+                    device_map="auto",
+                    trust_remote_code=True,
+                    low_cpu_mem_usage=True
+                )
+                print("Successfully loaded Aya model")
+            except Exception as model_error:
+                print(f"Aya model loading failed: {model_error}")
+                raise model_error
+        
+        else:
+            # Standard loading for other models (like Llama 3)
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            
+            model_kwargs = {
+                "torch_dtype": torch.float16,
+                "device_map": "auto",
+                "low_cpu_mem_usage": True
+            }
+            
+            if rope_scaling:
+                try:
+                    if isinstance(rope_scaling, str):
+                        rope_scaling = json.loads(rope_scaling)
+                    model_kwargs["rope_scaling"] = rope_scaling
+                except json.JSONDecodeError:
+                    print(f"Warning: Invalid rope_scaling JSON format: {rope_scaling}")
+            
+            model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
+        
         print("Model loaded successfully.")
+        
+        # Ensure tokenizer has a pad token
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+            
         return model, tokenizer
+        
     except Exception as e:
         print(f"Error loading model {model_name}: {str(e)}")
         return None, None
 
 def generate_continuation(model, tokenizer, text, max_tokens=50, temperature=0.7):
     try:
-        inputs = tokenizer(text, return_tensors="pt").to(model.device)
+        inputs = tokenizer(
+            text, 
+            return_tensors="pt", 
+            truncation=True, 
+            max_length=1024,
+            padding=True
+        ).to(model.device)
         
         # Generate with the same parameters as the API
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_tokens,
-            temperature=temperature,
-            top_p=0.9,
-            do_sample=True,
-            pad_token_id=tokenizer.eos_token_id
-        )
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=max_tokens,
+                temperature=temperature,
+                top_p=0.9,
+                do_sample=True,
+                pad_token_id=tokenizer.eos_token_id,
+                eos_token_id=tokenizer.eos_token_id
+            )
         
         # Decode only the new tokens
         new_tokens = outputs[0][inputs.input_ids.shape[1]:]
@@ -81,7 +148,7 @@ def generate_continuations_local(input_file, output_file, model_name, text_colum
         temperature (float): Temperature for generation
         max_rows (int): Maximum number of rows to process (None for all)
         token_file (str, optional): Path to Hugging Face token file.
-        use_cohere_tokenizer (bool): Whether to use Cohere tokenizer for Aya model
+        use_cohere_tokenizer (bool): Whether to use Cohere tokenizer for Aya model (deprecated)
         rope_scaling (str, optional): RoPE scaling configuration as JSON string
     """
     # --- Authentication --- 
@@ -94,8 +161,8 @@ def generate_continuations_local(input_file, output_file, model_name, text_colum
                 print(f"Loaded token from {token_file}")
         except Exception as e:
             print(f"Warning: Error loading token from file: {e}")
-    elif "HUGGING_FACE_HUB_TOKEN" in os.environ:
-        token = os.environ["HUGGING_FACE_HUB_TOKEN"]
+    elif "HUGGINGFACE_HUB_TOKEN" in os.environ:
+        token = os.environ["HUGGINGFACE_HUB_TOKEN"]
         print("Using Hugging Face token from environment variable")
     else:
         print("Warning: No Hugging Face token provided (file or env var).")
@@ -108,7 +175,6 @@ def generate_continuations_local(input_file, output_file, model_name, text_colum
     # --- Model Loading --- 
     model, tokenizer = load_model_and_tokenizer(
         model_name,
-        use_cohere_tokenizer=use_cohere_tokenizer,
         rope_scaling=rope_scaling
     )
     
@@ -121,7 +187,7 @@ def generate_continuations_local(input_file, output_file, model_name, text_colum
                 df_error = df_error.head(max_rows)
             model_short = model_name.split('/')[-1].lower().replace("-","")
             continuation_col = f"{model_short}_continuation"
-            df_error[continuation_col] = f"ERROR: Model loading failed - {str(e)}"
+            df_error[continuation_col] = f"ERROR: Model loading failed"
             print(f"Saving error state to {output_file}")
             # Ensure directory exists before saving error file
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -223,7 +289,7 @@ if __name__ == "__main__":
     parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for generation")
     parser.add_argument("--max_rows", type=int, default=None, help="Maximum number of rows to process")
     parser.add_argument("--token_file", type=str, default=None, help="Path to HF token file (optional)")
-    parser.add_argument("--use_cohere_tokenizer", action="store_true", help="Use Cohere tokenizer for Aya model")
+    parser.add_argument("--use_cohere_tokenizer", action="store_true", help="Use Cohere tokenizer for Aya model (deprecated)")
     parser.add_argument("--rope_scaling", help="RoPE scaling configuration as JSON string")
     
     args = parser.parse_args()

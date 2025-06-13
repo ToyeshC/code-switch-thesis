@@ -12,9 +12,10 @@ code-switch-thesis-backup-20250402/
 en_hi_results_vera/
 job_outputs/
 new_outputs/
+outputs/
 venv/
 
-tweets_outputs/
+tweets_outputs
 tweets_job_outputs/
 temp_scripts/perspective_analysis_outputs/
 temp_scripts/zzzz.csv
@@ -25,3 +26,9 @@ output/
 python_scripts/output/
 slurm-11391697.out
 toxicity_comparison.png
+temp_scripts/credentials.json
+
+perplexity_comparison.png
+perplexity_results.csv
+temp_scripts/token.pickle
+=0.15.0
