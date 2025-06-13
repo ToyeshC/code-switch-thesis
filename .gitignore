@@ -32,3 +32,7 @@ perplexity_comparison.png
 perplexity_results.csv
 temp_scripts/token.pickle
 =0.15.0
+
+final_data/
+final_outputs/
+final_job_outputs/
