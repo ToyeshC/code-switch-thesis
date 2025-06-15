@@ -312,17 +312,24 @@ def main(args):
     print(f"Reading input file: {args.input_file}")
     df = pd.read_csv(args.input_file)
 
-    # Automatically find columns to process
-    columns_to_analyze = ['src', 'tgt', 'generated']
-    continuation_columns = [col for col in df.columns if col.endswith('_continuation')]
-    columns_to_analyze.extend(continuation_columns)
-    
-    print(f"Found {len(columns_to_analyze)} columns to analyze: {columns_to_analyze}")
+    # Automatically find columns to process, unless specified
+    if args.columns:
+        columns_to_analyze = args.columns.split(',')
+        print(f"Using specified columns for analysis: {columns_to_analyze}")
+    else:
+        columns_to_analyze = ['src', 'tgt', 'generated']
+        continuation_columns = [col for col in df.columns if col.endswith('_continuation')]
+        columns_to_analyze.extend(continuation_columns)
+        print(f"Automatically found {len(columns_to_analyze)} columns to analyze.")
     
     num_workers = args.num_workers if args.num_workers > 0 else cpu_count()
     print(f"Using {num_workers} worker processes.")
 
     for column_name in columns_to_analyze:
+        if column_name not in df.columns:
+            print(f"Warning: Column '{column_name}' not found in input file. Skipping analysis.")
+            continue
+        
         print(f"\nAnalyzing column: {column_name}")
         
         texts_to_process = df[column_name].tolist()
@@ -353,6 +360,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_file", type=str, required=True, help="Path to save the final output CSV with all perspective scores.")
     parser.add_argument("--api_key", type=str, required=True, help="Your Perspective API key.")
     parser.add_argument("--num_workers", type=int, default=0, help="Number of parallel worker processes. Defaults to number of CPU cores.")
+    parser.add_argument("--columns", type=str, default=None, help="Comma-separated list of column names to analyze. If not provided, all relevant columns are used.")
     
     args = parser.parse_args()
     main(args) 

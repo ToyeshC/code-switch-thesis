@@ -75,10 +75,17 @@ def main(args):
     print(f"Reading input file: {args.input}")
     df = pd.read_csv(args.input)
 
+    columns_to_process = args.columns.split(',')
+    print(f"Target columns for continuation: {columns_to_process}")
+
     for model_short_name, model_full_name in MODELS_TO_PROCESS.items():
         model, tokenizer = setup_model_and_tokenizer(model_full_name, args.token)
 
-        for column_name in COLUMNS_TO_PROCESS:
+        for column_name in columns_to_process:
+            if column_name not in df.columns:
+                print(f"Warning: Column '{column_name}' not found in input file. Skipping.")
+                continue
+
             new_column_name = f"{model_short_name}_{column_name}_continuation"
             print(f"\nProcessing: Model '{model_short_name}' on column '{column_name}' -> new column '{new_column_name}'")
 
@@ -128,6 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_tokens", type=int, default=50, help="Maximum number of new tokens to generate.")
     parser.add_argument("--temperature", type=float, default=0.7, help="Generation temperature for sampling.")
     parser.add_argument("--batch_size", type=int, default=8, help="Number of prompts to process in parallel on the GPU.")
+    parser.add_argument("--columns", type=str, default="src,tgt,generated", help="Comma-separated list of column names to process.")
     
     args = parser.parse_args()
     main(args) 
