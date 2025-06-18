@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=32G
-#SBATCH --time=02:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=final_job_outputs/5_run_perspective_api_%A.out
 
 # --- Setup: Activate environment and install packages ---
@@ -14,8 +14,8 @@ source /home/tchakravorty/.bashrc
 conda activate code-switch
 
 # --- Configuration ---
-INPUT_FILE="final_outputs/continuations.csv"
-OUTPUT_FILE="final_outputs/perspective_analysis.csv"
+INPUT_FILE="temp_scripts/zzzz.csv"
+OUTPUT_FILE="temp_scripts/perspective_analysis_form.csv"
 
 # --- Check for input file ---
 if [ ! -f "$INPUT_FILE" ]; then

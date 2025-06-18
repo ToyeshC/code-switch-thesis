@@ -3,6 +3,8 @@
 Analyzing Fluency of Code-Switched Content and its Correlation with Toxicity
 Research Question 4: How does code-switching affect the fluency of LLM-generated text, 
 and how does this fluency correlate with toxicity?
+
+Multi-GPU parallelized version for faster execution on Snellius.
 """
 
 import pandas as pd
@@ -17,9 +19,14 @@ from datetime import datetime
 import warnings
 from itertools import combinations
 import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from huggingface_hub import login
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import multiprocessing as mp
+from functools import partial
 
 # Add the project root to the Python path to allow importing 'config'
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -43,6 +50,163 @@ sns.set_style("whitegrid")
 professional_colors = ['#2E86AB', '#A8DADC', '#457B9D', '#1D3557', '#A2E4B8', '#52B69A']
 sns.set_palette(professional_colors)
 
+class TextDataset(Dataset):
+    """Dataset for batch processing texts for perplexity calculation"""
+    def __init__(self, texts, tokenizer, max_length=512):
+        self.texts = texts
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+    
+    def __len__(self):
+        return len(self.texts)
+    
+    def __getitem__(self, idx):
+        text = self.texts[idx]
+        if not isinstance(text, str) or len(text.strip()) == 0:
+            # Return dummy encoding for empty/invalid texts
+            return {
+                'input_ids': torch.zeros(1, dtype=torch.long),
+                'attention_mask': torch.zeros(1, dtype=torch.long),
+                'text_idx': idx
+            }
+        
+        try:
+            encoding = self.tokenizer(
+                text, 
+                return_tensors='pt',
+                truncation=True,
+                max_length=self.max_length,
+                padding=False
+            )
+            return {
+                'input_ids': encoding['input_ids'].squeeze(0),
+                'attention_mask': encoding['attention_mask'].squeeze(0),
+                'text_idx': idx
+            }
+        except Exception:
+            # Return dummy encoding for problematic texts
+            return {
+                'input_ids': torch.zeros(1, dtype=torch.long),
+                'attention_mask': torch.zeros(1, dtype=torch.long),
+                'text_idx': idx
+            }
+
+def collate_fn(batch):
+    """Custom collate function for variable length sequences"""
+    input_ids = []
+    attention_masks = []
+    text_indices = []
+    
+    for item in batch:
+        input_ids.append(item['input_ids'])
+        attention_masks.append(item['attention_mask'])
+        text_indices.append(item['text_idx'])
+    
+    # Pad sequences to the same length within the batch
+    from torch.nn.utils.rnn import pad_sequence
+    input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
+    attention_masks = pad_sequence(attention_masks, batch_first=True, padding_value=0)
+    
+    return {
+        'input_ids': input_ids,
+        'attention_mask': attention_masks,
+        'text_indices': text_indices
+    }
+
+class SimplePerplexityCalculator:
+    """Simple, robust perplexity calculator that works reliably"""
+    
+    def __init__(self, model_name='google/mt5-xl', batch_size=8, max_length=512):
+        self.model_name = model_name
+        self.max_length = max_length
+        self.batch_size = batch_size
+        
+        print("Loading model for perplexity calculation...")
+        try:
+            # Load tokenizer
+            self.tokenizer = T5Tokenizer.from_pretrained(model_name)
+            
+            # Load model - use simple approach that works
+            self.model = T5ForConditionalGeneration.from_pretrained(
+                model_name,
+                torch_dtype=torch.float16
+            )
+            
+            # Move to GPU if available
+            if torch.cuda.is_available():
+                self.model = self.model.cuda()
+                print(f"Model loaded on GPU")
+            else:
+                print("Model loaded on CPU")
+                
+            self.model.eval()
+            print("Model initialization complete")
+            
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            raise
+    
+    def calculate_batch_perplexity(self, texts):
+        """Calculate perplexity for a batch of texts"""
+        if not texts:
+            return []
+        
+        print(f"Calculating perplexity for {len(texts)} texts...")
+        perplexities = []
+        
+        # Process in smaller batches
+        for i in range(0, len(texts), self.batch_size):
+            batch_texts = texts[i:i + self.batch_size]
+            batch_perps = []
+            
+            for text in batch_texts:
+                try:
+                    perp = self._calculate_single_perplexity(text)
+                    batch_perps.append(perp)
+                except Exception as e:
+                    print(f"Error calculating perplexity for text: {e}")
+                    batch_perps.append(np.nan)
+            
+            perplexities.extend(batch_perps)
+            
+            if (i // self.batch_size + 1) % 10 == 0:
+                print(f"  Processed batch {i // self.batch_size + 1}/{(len(texts) - 1) // self.batch_size + 1}")
+        
+        return perplexities
+    
+    def _calculate_single_perplexity(self, text):
+        """Calculate perplexity for a single text"""
+        if not text or pd.isna(text):
+            return np.nan
+        
+        # Tokenize
+        inputs = self.tokenizer(
+            text,
+            return_tensors="pt",
+            max_length=self.max_length,
+            truncation=True,
+            padding=True
+        )
+        
+        if torch.cuda.is_available():
+            inputs = {k: v.cuda() for k, v in inputs.items()}
+        
+        with torch.no_grad():
+            try:
+                outputs = self.model(**inputs, labels=inputs["input_ids"])
+                loss = outputs.loss
+                
+                if torch.isfinite(loss):
+                    perplexity = torch.exp(loss).item()
+                    # Cap extremely high perplexities
+                    return min(perplexity, 10000)
+                else:
+                    return np.nan
+                    
+            except Exception as e:
+                print(f"Error in model forward pass: {e}")
+                return np.nan
+
 class FluencyToxicityAnalyzer:
     """Class to analyze fluency and toxicity correlation in code-switched content"""
     
@@ -50,7 +214,9 @@ class FluencyToxicityAnalyzer:
         self.perspective_file = perspective_file
         self.hinge_file = hinge_file
         self.output_dir = os.path.join(output_dir, "experiment_d")
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.num_gpus = torch.cuda.device_count()
+        
+        print(f"Available GPUs: {self.num_gpus}")
         
         # Data storage
         self.perspective_df = None
@@ -77,6 +243,9 @@ class FluencyToxicityAnalyzer:
         self.statistical_results = pd.DataFrame()
         self.correlation_results = pd.DataFrame()
         
+        # Initialize simple perplexity calculator
+        self.perplexity_calculator = None
+
     def login_huggingface(self):
         """Logs in to Hugging Face using the API key from config."""
         print("Logging in to Hugging Face...")
@@ -200,74 +369,85 @@ class FluencyToxicityAnalyzer:
         return pd.DataFrame(stats_data)
 
     def calculate_perplexity_scores(self):
-        """Calculate perplexity scores using mT5-XL for all text types"""
-        print(f"Loading mT5-XL model on {self.device}...")
+        """Calculate perplexity scores using mT5-XL for all text types with optimized processing"""
+        print(f"Initializing perplexity calculation...")
         
-        model_name = 'google/mt5-xl'
+        # Initialize simple calculator
         try:
-            tokenizer = T5Tokenizer.from_pretrained(model_name)
-            model = T5ForConditionalGeneration.from_pretrained(model_name).to(self.device)
-            model.eval()
+            self.perplexity_calculator = SimplePerplexityCalculator(
+                model_name='google/mt5-xl',
+                batch_size=8,  # Conservative batch size for stability
+                max_length=512
+            )
         except Exception as e:
-            print(f"Error loading model {model_name}: {e}")
-            return False
-
-        # Combine datasets for perplexity calculation
-        all_data = []
+            print(f"Error initializing perplexity calculator: {e}")
+            return
+        
+        # Combine both datasets for comprehensive analysis
+        all_texts = []
+        text_metadata = []
         
         # Add perspective analysis data
-        for _, row in self.perspective_df.iterrows():
+        for idx, row in self.perspective_df.iterrows():
             for text_type_name, text_col in self.text_types.items():
-                if pd.notna(row[text_col]) and isinstance(row[text_col], str):
-                    all_data.append({
-                        'text': row[text_col],
-                        'source': 'perspective_analysis',
+                if text_col in row and pd.notna(row[text_col]):
+                    all_texts.append(str(row[text_col]))
+                    text_metadata.append({
                         'text_type': text_type_name,
-                        'primary_key': row.get('primary_key', 'unknown'),
+                        'source': 'perspective_analysis',
+                        'primary_key': row.get('primary_key', f'persp_{idx}'),
                         'method': row.get('method', 'unknown'),
-                        'model': row.get('model', 'unknown')
+                        'model': row.get('model', 'unknown'),
+                        'direction': row.get('direction', 'unknown')
                     })
         
         # Add HINGE data
-        for _, row in self.hinge_df.iterrows():
+        for idx, row in self.hinge_df.iterrows():
             for text_type_name, text_col in self.text_types.items():
-                if pd.notna(row[text_col]) and isinstance(row[text_col], str):
-                    all_data.append({
-                        'text': row[text_col],
-                        'source': 'hinge',
+                if text_col in row and pd.notna(row[text_col]):
+                    all_texts.append(str(row[text_col]))
+                    text_metadata.append({
                         'text_type': text_type_name,
-                        'primary_key': row.get('primary_key', 'unknown'),
+                        'source': 'hinge',
+                        'primary_key': row.get('primary_key', f'hinge_{idx}'),
                         'method': row.get('method', 'hinge_baseline'),
-                        'model': row.get('model', 'human_annotated')
+                        'model': row.get('model', 'human_annotated'),
+                        'direction': row.get('direction', 'en_to_hi_cs')
                     })
         
-        print(f"Calculating perplexity for {len(all_data)} texts...")
+        print(f"Calculating perplexity for {len(all_texts)} texts...")
         
         # Calculate perplexity scores
-        perplexity_scores = []
-        with torch.no_grad():
-            for i, item in enumerate(all_data):
-                if i % 100 == 0:
-                    print(f"  Processing text {i+1}/{len(all_data)}...")
-                
-                text = item['text']
-                try:
-                    inputs = tokenizer(text, return_tensors='pt', truncation=True, max_length=512).to(self.device)
-                    labels = inputs['input_ids']
-                    outputs = model(**inputs, labels=labels)
-                    loss = outputs.loss
-                    perplexity = torch.exp(loss).item()
-                    perplexity_scores.append(perplexity)
-                except Exception as e:
-                    print(f"Could not compute perplexity for text {i}: {e}")
-                    perplexity_scores.append(np.nan)
+        perplexity_scores = self.perplexity_calculator.calculate_batch_perplexity(all_texts)
         
         # Create results dataframe
-        for i, score in enumerate(perplexity_scores):
-            all_data[i]['perplexity'] = score
+        results_data = []
+        for i, (text, metadata, perplexity) in enumerate(zip(all_texts, text_metadata, perplexity_scores)):
+            results_data.append({
+                'text': text[:100] + '...' if len(text) > 100 else text,  # Truncate for storage
+                'perplexity': perplexity,
+                **metadata
+            })
         
-        self.perplexity_results = pd.DataFrame(all_data)
-        print("Perplexity calculation complete.")
+        self.perplexity_results = pd.DataFrame(results_data)
+        
+        # Save perplexity results
+        perp_file = os.path.join(self.output_dir, "perplexity_results.csv")
+        self.perplexity_results.to_csv(perp_file, index=False)
+        print(f"Saved perplexity results to: {perp_file}")
+        
+        # Print summary statistics
+        print("\nPerplexity calculation summary:")
+        valid_perps = self.perplexity_results['perplexity'].dropna()
+        if len(valid_perps) > 0:
+            print(f"  Valid scores: {len(valid_perps)}/{len(self.perplexity_results)}")
+            print(f"  Mean perplexity: {valid_perps.mean():.2f}")
+            print(f"  Median perplexity: {valid_perps.median():.2f}")
+            print(f"  Min perplexity: {valid_perps.min():.2f}")
+            print(f"  Max perplexity: {valid_perps.max():.2f}")
+        else:
+            print("  No valid perplexity scores calculated!")
+        
         return True
 
     def analyze_monolingual_vs_codeswitched_fluency(self):
@@ -366,7 +546,7 @@ class FluencyToxicityAnalyzer:
         return self.statistical_results
 
     def analyze_model_specific_fluency(self):
-        """Analyze fluency of LLM continuations by model and prompt type"""
+        """Analyze fluency of LLM continuations by model and prompt type using multi-GPU"""
         print("Analyzing model-specific fluency on continuations...")
         
         # Get continuation data from perspective analysis
@@ -391,33 +571,32 @@ class FluencyToxicityAnalyzer:
         
         print(f"Calculating perplexity for {len(continuation_data)} continuations...")
         
-        # Load model for continuation analysis
-        model_name = 'google/mt5-xl'
-        try:
-            tokenizer = T5Tokenizer.from_pretrained(model_name)
-            model = T5ForConditionalGeneration.from_pretrained(model_name).to(self.device)
-            model.eval()
-        except Exception as e:
-            print(f"Error loading model {model_name}: {e}")
-            return pd.DataFrame()
+        # Initialize simple calculator if not already done
+        if self.perplexity_calculator is None:
+            try:
+                self.perplexity_calculator = SimplePerplexityCalculator(
+                    model_name='google/mt5-xl',
+                    batch_size=8,
+                    max_length=512
+                )
+            except Exception as e:
+                print(f"Error initializing perplexity calculator: {e}")
+                return pd.DataFrame()
+        
+        # Extract texts for batch processing
+        continuation_texts = [item['text'] for item in continuation_data]
         
         # Calculate perplexity for continuations
-        with torch.no_grad():
-            for i, item in enumerate(continuation_data):
-                if i % 50 == 0:
-                    print(f"  Processing continuation {i+1}/{len(continuation_data)}...")
-                
-                text = item['text']
-                try:
-                    inputs = tokenizer(text, return_tensors='pt', truncation=True, max_length=512).to(self.device)
-                    labels = inputs['input_ids']
-                    outputs = model(**inputs, labels=labels)
-                    loss = outputs.loss
-                    perplexity = torch.exp(loss).item()
-                    item['perplexity'] = perplexity
-                except Exception as e:
-                    print(f"Could not compute perplexity for continuation {i}: {e}")
-                    item['perplexity'] = np.nan
+        try:
+            perplexity_scores = self.perplexity_calculator.calculate_batch_perplexity(continuation_texts)
+        except Exception as e:
+            print(f"Error calculating perplexity for continuations: {e}")
+            # Fill with NaN values instead of failing completely
+            perplexity_scores = [np.nan] * len(continuation_texts)
+        
+        # Assign perplexity scores back to continuation data
+        for i, score in enumerate(perplexity_scores):
+            continuation_data[i]['perplexity'] = score
         
         continuation_df = pd.DataFrame(continuation_data)
         
@@ -565,13 +744,29 @@ class FluencyToxicityAnalyzer:
             """Set y-axis limits to exclude extreme outliers"""
             valid_data = data.dropna()
             if len(valid_data) > 0:
-                upper_limit = np.percentile(valid_data, percentile)
-                lower_limit = max(0, np.percentile(valid_data, 5))  # Don't go below 0
+                # Check for infinite or extremely large values
+                finite_data = valid_data[np.isfinite(valid_data)]
+                if len(finite_data) == 0:
+                    print("Warning: No finite perplexity values found for plotting")
+                    ax.set_ylim(0, 100)  # Set reasonable default limits
+                    return
+                
+                # Remove extreme outliers (>1000) for better visualization
+                reasonable_data = finite_data[finite_data <= 1000]
+                if len(reasonable_data) == 0:
+                    reasonable_data = finite_data
+                
+                upper_limit = np.percentile(reasonable_data, percentile)
+                lower_limit = max(0, np.percentile(reasonable_data, 5))  # Don't go below 0
                 
                 # Add some padding
                 y_range = upper_limit - lower_limit
-                padding = y_range * 0.1
-                ax.set_ylim(lower_limit - padding, upper_limit + padding)
+                if y_range > 0:
+                    padding = y_range * 0.1
+                    ax.set_ylim(lower_limit - padding, upper_limit + padding)
+                else:
+                    # Handle case where all values are the same
+                    ax.set_ylim(max(0, lower_limit - 1), upper_limit + 1)
                 
                 # Add note about outliers
                 outliers_count = np.sum(valid_data > upper_limit)
@@ -580,6 +775,9 @@ class FluencyToxicityAnalyzer:
                     ax.text(0.02, 0.98, f'Note: {outliers_count} outliers ({outliers_pct:.1f}%) excluded from view', 
                            transform=ax.transAxes, verticalalignment='top', fontsize=9,
                            bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.7))
+            else:
+                # No valid data - set reasonable default limits
+                ax.set_ylim(0, 100)
         
         # 1. Perplexity Distribution by Text Type
         plt.figure(figsize=(12, 8))

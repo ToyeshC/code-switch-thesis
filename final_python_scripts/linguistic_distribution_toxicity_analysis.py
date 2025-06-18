@@ -21,6 +21,7 @@ from datetime import datetime
 import warnings
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
+import logging
 
 # Add the current working directory to Python path to find config.py
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -41,8 +42,11 @@ from nltk.corpus import words as nltk_words
 try:
     import torch
     import torch.nn as nn
+    from torch.nn.parallel import DataParallel
     from transformers import AutoTokenizer, AutoModelForSequenceClassification
     from captum.attr import IntegratedGradients, DeepLift, GradientShap
+    import torch.multiprocessing as mp
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     CAPTUM_AVAILABLE = True
 except ImportError:
     print("Warning: PyTorch, Transformers, or Captum not available. Feature attribution disabled.")
@@ -54,6 +58,192 @@ warnings.filterwarnings('ignore')
 # Set matplotlib backend to avoid display issues on cluster
 import matplotlib
 matplotlib.use('Agg')
+import matplotlib.font_manager as fm
+from matplotlib.font_manager import FontProperties
+
+# Configure matplotlib for Hindi text rendering
+def setup_matplotlib_fonts():
+    """Configure matplotlib to handle Hindi/Devanagari text"""
+    try:
+        # Try to download and use Noto Sans Devanagari font
+        import urllib.request
+        import tempfile
+        
+        # Create temp directory for font
+        temp_dir = tempfile.mkdtemp()
+        font_path = os.path.join(temp_dir, 'NotoSansDevanagari-Regular.ttf')
+        
+        # Download Noto Sans Devanagari font if not available
+        font_url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf"
+        
+        try:
+            print("Downloading Noto Sans Devanagari font...")
+            urllib.request.urlretrieve(font_url, font_path)
+            
+            # Register the font with matplotlib
+            fm.fontManager.addfont(font_path)
+            
+            # Create font properties
+            hindi_font_prop = FontProperties(fname=font_path, size=12)
+            
+            print(f"Successfully downloaded and configured Noto Sans Devanagari font")
+            return hindi_font_prop, font_path
+            
+        except Exception as e:
+            print(f"Could not download font: {e}")
+            print("Falling back to system fonts...")
+            
+    except ImportError:
+        print("urllib not available for font download")
+    
+    # Fallback to system fonts
+    hindi_fonts = [
+        'Noto Sans Devanagari',
+        'Mangal', 
+        'Devanagari Sangam MN',
+        'Mukti Narrow',
+        'Gargi',
+        'Sahadeva',
+        'Chandas',
+        'Kokila',
+        'Utsaah',
+        'Aparajita'
+    ]
+    
+    # Get all available system fonts
+    available_fonts = [f.name for f in fm.fontManager.ttflist]
+    
+    # Find the first available Hindi font
+    hindi_font = None
+    for font in hindi_fonts:
+        if font in available_fonts:
+            hindi_font = font
+            break
+    
+    if hindi_font:
+        plt.rcParams['font.family'] = ['sans-serif']
+        plt.rcParams['font.sans-serif'] = [hindi_font] + plt.rcParams['font.sans-serif']
+        hindi_font_prop = FontProperties(family=hindi_font, size=12)
+        print(f"Using system font '{hindi_font}' for Hindi text rendering")
+    else:
+        # Final fallback: Use DejaVu Sans with Unicode support
+        plt.rcParams['font.family'] = ['DejaVu Sans', 'Arial Unicode MS', 'sans-serif']
+        hindi_font_prop = FontProperties(family='DejaVu Sans', size=12)
+        print("Using DejaVu Sans fallback font for Hindi text rendering")
+        print("Note: For better Hindi text rendering, consider installing 'Noto Sans Devanagari' font")
+        print("On Ubuntu/Debian: sudo apt-get install fonts-noto-devanagari")
+        print("On CentOS/RHEL: sudo yum install google-noto-sans-devanagari-fonts")
+    
+    # Ensure matplotlib uses Unicode
+    plt.rcParams['axes.unicode_minus'] = False
+    plt.rcParams['font.size'] = 10
+    plt.rcParams['axes.labelsize'] = 10
+    plt.rcParams['xtick.labelsize'] = 9
+    plt.rcParams['ytick.labelsize'] = 9
+    
+    return hindi_font_prop, None
+
+# Setup fonts for Hindi text
+HINDI_FONT_PROP, FONT_PATH = setup_matplotlib_fonts()
+
+def safe_text_render(text_list, max_length=15):
+    """
+    Safely render text for matplotlib, handling Unicode issues
+    """
+    safe_texts = []
+    for text in text_list:
+        if isinstance(text, str):
+            try:
+                # Truncate long text for better visualization
+                if len(text) > max_length:
+                    text = text[:max_length] + '...'
+                
+                # Test if the text can be properly encoded/decoded
+                test = text.encode('utf-8').decode('utf-8')
+                safe_texts.append(text)
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                # Fallback for problematic characters
+                safe_texts.append(repr(text).strip("'\""))
+        else:
+            safe_texts.append(str(text))
+    return safe_texts
+
+def detect_script_type(text):
+    """
+    Detect if text contains Hindi/Devanagari characters
+    """
+    if not isinstance(text, str):
+        return 'english'
+    
+    # Count Devanagari characters (Unicode range: U+0900-U+097F)
+    devanagari_count = sum(1 for char in text if '\u0900' <= char <= '\u097F')
+    total_chars = len([char for char in text if char.isalpha()])
+    
+    if total_chars == 0:
+        return 'english'
+    
+    # If more than 10% of alphabetic characters are Devanagari, consider it Hindi
+    if devanagari_count / total_chars > 0.1:
+        return 'hindi'
+    else:
+        return 'english'
+
+def apply_smart_font_to_plot(ax, title=None, xlabel=None, ylabel=None):
+    """
+    Apply appropriate font properties based on script detection
+    """
+    global HINDI_FONT_PROP
+    
+    try:
+        # Apply font to tick labels with script detection
+        for label in (ax.get_xticklabels() + ax.get_yticklabels()):
+            text = label.get_text()
+            script_type = detect_script_type(text)
+            
+            if script_type == 'hindi':
+                label.set_fontproperties(HINDI_FONT_PROP)
+            else:
+                # Use default system font for English
+                label.set_fontfamily('DejaVu Sans')
+            label.set_fontsize(10)
+        
+        # Apply font to title
+        if title:
+            script_type = detect_script_type(title)
+            if script_type == 'hindi':
+                ax.set_title(title, fontproperties=HINDI_FONT_PROP, fontsize=14, fontweight='bold')
+            else:
+                ax.set_title(title, fontfamily='DejaVu Sans', fontsize=14, fontweight='bold')
+        
+        # Apply font to axis labels
+        if xlabel:
+            script_type = detect_script_type(xlabel)
+            if script_type == 'hindi':
+                ax.set_xlabel(xlabel, fontproperties=HINDI_FONT_PROP, fontsize=12)
+            else:
+                ax.set_xlabel(xlabel, fontfamily='DejaVu Sans', fontsize=12)
+                
+        if ylabel:
+            script_type = detect_script_type(ylabel)
+            if script_type == 'hindi':
+                ax.set_ylabel(ylabel, fontproperties=HINDI_FONT_PROP, fontsize=12)
+            else:
+                ax.set_ylabel(ylabel, fontfamily='DejaVu Sans', fontsize=12)
+            
+    except Exception as e:
+        print(f"Warning: Could not apply smart font properties: {e}")
+        # Fallback to default matplotlib rendering
+        if title:
+            ax.set_title(title, fontsize=14, fontweight='bold')
+        if xlabel:
+            ax.set_xlabel(xlabel, fontsize=12)
+        if ylabel:
+            ax.set_ylabel(ylabel, fontsize=12)
+
+# Legacy function name for backward compatibility
+def apply_hindi_font_to_plot(ax, title=None, xlabel=None, ylabel=None):
+    """Legacy wrapper - now uses smart font detection"""
+    return apply_smart_font_to_plot(ax, title=title, xlabel=xlabel, ylabel=ylabel)
 
 # Set professional color scheme (matching existing scripts)
 plt.style.use('default')
@@ -67,12 +257,24 @@ class LinguisticToxicityAnalyzer:
     perform feature attribution analysis using Captum
     """
     
-    def __init__(self, input_file: str, output_dir: str, fasttext_model: str):
+    def __init__(self, input_file: str, output_dir: str, fasttext_model: str, multi_gpu: bool = False):
         self.input_file = input_file
         self.output_dir = os.path.join(output_dir, "experiment_e")
         self.fasttext_model = fasttext_model
+        self.multi_gpu = multi_gpu
         self.df = None
         self.model = None
+        
+        # Setup multi-GPU configuration
+        if self.multi_gpu and torch.cuda.is_available():
+            self.num_gpus = torch.cuda.device_count()
+            print(f"Multi-GPU mode enabled: {self.num_gpus} GPUs available")
+            # Set multiprocessing start method for CUDA compatibility
+            if mp.get_start_method(allow_none=True) != 'spawn':
+                mp.set_start_method('spawn', force=True)
+        else:
+            self.num_gpus = 1
+            print("Single GPU mode")
         
         # Ensure output directory exists
         os.makedirs(self.output_dir, exist_ok=True)
@@ -264,7 +466,13 @@ class LinguisticToxicityAnalyzer:
             # Get corresponding toxicity scores
             toxicity_cols = {dim: f"{text_col}_{dim}" for dim in self.toxicity_dimensions}
             
-            for idx, text in text_data.items():
+            # Add progress tracking for this text type
+            total_texts = len(text_data)
+            progress_interval = max(1, total_texts // 10)  # Show progress every 10%
+            
+            for count, (idx, text) in enumerate(text_data.items()):
+                if count % progress_interval == 0:
+                    print(f"    Progress: {count}/{total_texts} ({count/total_texts*100:.1f}%)")
                 if pd.isna(text):
                     continue
                     
@@ -444,16 +652,15 @@ class LinguisticToxicityAnalyzer:
             else:
                 print("Warning: No HuggingFace API token found - trying without authentication")
             
-            # Try multiple toxicity classifiers in order of preference
-            model_options = [
-                "martin-ha/toxic-comment-model",
-                "unitary/toxic-bert-base-uncased", 
-                "s-nlp/roberta_toxicity_classifier",
-                "cardiffnlp/twitter-roberta-base-offensive"
+            # List of models to try for attribution
+            MODELS_TO_TRY = [
+                "unitary/toxic-bert",
+                "cardiffnlp/twitter-roberta-base-offensive",
+                "Hate-speech-CNERG/bert-base-uncased-hatexplain"
             ]
             
             model_loaded = False
-            for model_name in model_options:
+            for model_name in MODELS_TO_TRY:
                 try:
                     print(f"Attempting to load model: {model_name}")
                     
@@ -469,6 +676,11 @@ class LinguisticToxicityAnalyzer:
                     self.tokenizer = AutoTokenizer.from_pretrained(model_name, **tokenizer_kwargs)
                     self.attribution_model = AutoModelForSequenceClassification.from_pretrained(model_name, **model_kwargs)
                     self.attribution_model.eval()
+                    
+                    # Ensure model gradients are enabled for attribution
+                    for param in self.attribution_model.parameters():
+                        param.requires_grad = True
+                    
                     print(f"Successfully loaded model: {model_name}")
                     model_loaded = True
                     break
@@ -483,16 +695,22 @@ class LinguisticToxicityAnalyzer:
             def model_forward_func(input_ids, attention_mask=None):
                 # Ensure input_ids are Long tensors
                 input_ids = input_ids.long()
-                outputs = self.attribution_model(input_ids, attention_mask=attention_mask)
+                if attention_mask is not None:
+                    attention_mask = attention_mask.long()
+                    outputs = self.attribution_model(input_ids, attention_mask=attention_mask)
+                else:
+                    outputs = self.attribution_model(input_ids)
                 return outputs.logits
             
             # Initialize attribution methods 
-            # Use the actual model for DeepLift (needs module hooks)
-            # Use wrapper function for Integrated Gradients (works with functions)
+            # Use the embedding layer as the interpretable layer for attribution
+            # This avoids issues with integer token gradients
+            embeddings = self.attribution_model.get_input_embeddings()
             self.model_forward_func = model_forward_func
             self.integrated_gradients = IntegratedGradients(model_forward_func)
-            self.deeplift = DeepLift(self.attribution_model)  # Use actual model
+            # Note: deeplift will be created per-call to avoid model compatibility issues
             self.gradient_shap = GradientShap(model_forward_func)
+            self.input_embeddings = embeddings
             
             print("Attribution model setup complete")
             return True
@@ -512,58 +730,133 @@ class LinguisticToxicityAnalyzer:
             
         print(f"Computing feature attribution using {method}...")
         
+        # Analyze ALL high-toxicity texts for comprehensive research analysis
+        print(f"Analyzing ALL {len(texts)} high-toxicity texts for comprehensive attribution analysis")
+        
+        # Use cuda:0 specifically to avoid device conflicts
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        if device.type == 'cuda':
+            self.attribution_model = self.attribution_model.to(device)
+            self.input_embeddings = self.input_embeddings.to(device)
+            print(f"Using GPU acceleration: {device}")
+        else:
+            print("Using CPU for attribution analysis")
+            
         results = []
         
         for i, text in enumerate(texts):
+            if i % 10 == 0:
+                print(f"Processing text {i+1}/{len(texts)}...")
+                
+            # Note: Analyzing ALL texts, including long ones (GPU can handle it)
             if pd.isna(text) or not isinstance(text, str):
                 continue
                 
             try:
-                # Tokenize text
+                # Tokenize text with full sequence length for comprehensive analysis
                 inputs = self.tokenizer(text, return_tensors='pt', truncation=True, 
-                                      padding=True, max_length=512)
-                input_ids = inputs['input_ids'].long()  # Ensure Long tensor
-                attention_mask = inputs['attention_mask']
+                                      padding=True, max_length=512)  # Restored to 512 for comprehensive analysis
+                input_ids = inputs['input_ids'].long().to(device)  # Move to device
+                attention_mask = inputs['attention_mask'].long().to(device) if 'attention_mask' in inputs else None
+                
+                # For attribution, we don't set requires_grad on input_ids (they're integers)
+                # Captum will handle the embedding layer gradients internally
                 
                 # Get baseline (all pad tokens, properly typed)
-                baseline_ids = torch.zeros_like(input_ids, dtype=torch.long)
-                baseline_mask = torch.zeros_like(attention_mask)
+                baseline_ids = torch.zeros_like(input_ids, dtype=torch.long).to(device)
+                if attention_mask is not None:
+                    baseline_mask = torch.zeros_like(attention_mask, dtype=torch.long).to(device)
+                else:
+                    baseline_mask = None
+                
+                # Convert to embeddings for attribution
+                input_embeddings = self.input_embeddings(input_ids)
+                baseline_embeddings = self.input_embeddings(baseline_ids)
+                
+                # Create a wrapper nn.Module for Captum. This is required for DeepLift,
+                # which needs an nn.Module object to register hooks, not a function.
+                class EmbeddingForwardModule(nn.Module):
+                    def __init__(self, model):
+                        super().__init__()
+                        self.model = model
+                        
+                    def forward(self, embeddings, attention_mask=None):
+                        # Use embeddings directly in the model's forward pass
+                        if attention_mask is not None:
+                            outputs = self.model(inputs_embeds=embeddings, attention_mask=attention_mask)
+                        else:
+                            outputs = self.model(inputs_embeds=embeddings)
+                        return outputs.logits
+
+                embedding_forward_module = EmbeddingForwardModule(self.attribution_model)
                 
                 # Compute attribution based on method
                 if method == 'integrated_gradients':
-                    attributions = self.integrated_gradients.attribute(
-                        input_ids, 
-                        baselines=baseline_ids,
-                        target=1,  # target=1 for toxic class
-                        additional_forward_args=(attention_mask,),
-                        internal_batch_size=1
-                    )
+                    ig_embeddings = IntegratedGradients(embedding_forward_module)
+                    if attention_mask is not None:
+                        attributions = ig_embeddings.attribute(
+                            input_embeddings, 
+                            baselines=baseline_embeddings,
+                            target=1,  # target=1 for toxic class
+                            additional_forward_args=(attention_mask,),
+                            internal_batch_size=2,  # Use larger batch for GPU efficiency
+                            n_steps=50,  # Restored to default 50 for accuracy
+                            return_convergence_delta=False
+                        )
+                    else:
+                        attributions = ig_embeddings.attribute(
+                            input_embeddings, 
+                            baselines=baseline_embeddings,
+                            target=1,  # target=1 for toxic class
+                            internal_batch_size=2,  # Use larger batch for GPU efficiency
+                            n_steps=50,  # Restored to default 50 for accuracy
+                            return_convergence_delta=False
+                        )
                 elif method == 'deeplift':
-                    attributions = self.deeplift.attribute(
-                        input_ids, 
-                        baselines=baseline_ids,
-                        target=1
-                    )
+                    # For DeepLift, use the nn.Module wrapper
+                    dl = DeepLift(embedding_forward_module)
+                    if attention_mask is not None:
+                        attributions = dl.attribute(
+                            input_embeddings, 
+                            baselines=baseline_embeddings,
+                            target=1,
+                            additional_forward_args=(attention_mask,)
+                        )
+                    else:
+                        attributions = dl.attribute(
+                            input_embeddings, 
+                            baselines=baseline_embeddings,
+                            target=1
+                        )
                 elif method == 'gradient_shap':
-                    # For GradientShap, we need to create random baselines
+                    # For GradientShap, create random embedding baselines
                     n_samples = 50
-                    vocab_size = len(self.tokenizer.vocab)
-                    random_baselines = torch.randint(0, vocab_size, 
-                                                   (n_samples,) + input_ids.shape[1:], 
-                                                   dtype=torch.long)
-                    attributions = self.gradient_shap.attribute(
-                        input_ids, 
-                        baselines=random_baselines,
-                        target=1,
-                        additional_forward_args=(attention_mask,)
-                    )
+                    embedding_dim = input_embeddings.shape[-1]
+                    # Create random embeddings as baselines (using normal distribution)
+                    random_embeddings = torch.randn((n_samples,) + input_embeddings.shape[1:]) * 0.1
+                    
+                    gs = GradientShap(embedding_forward_module)
+                    if attention_mask is not None:
+                        attributions = gs.attribute(
+                            input_embeddings, 
+                            baselines=random_embeddings,
+                            target=1,
+                            additional_forward_args=(attention_mask,)
+                        )
+                    else:
+                        attributions = gs.attribute(
+                            input_embeddings, 
+                            baselines=random_embeddings,
+                            target=1
+                        )
                 else:
                     print(f"Unknown attribution method: {method}")
                     continue
                 
                 # Convert to token-level attributions
                 tokens = self.tokenizer.convert_ids_to_tokens(input_ids[0])
-                attr_scores = attributions[0].sum(dim=-1).cpu().numpy()
+                # Sum attribution scores across embedding dimensions to get per-token scores
+                attr_scores = attributions[0].sum(dim=-1).detach().cpu().numpy()
                 
                 # Remove special tokens and aggregate subwords
                 clean_tokens = []
@@ -609,9 +902,186 @@ class LinguisticToxicityAnalyzer:
                 
             except Exception as e:
                 print(f"Error processing text {i}: {e}")
+                # If too many errors, skip this method
+                if len(results) == 0 and i > 10:  # If no successful attributions after 10 tries
+                    print(f"Too many attribution errors for {method}, skipping remaining texts")
+                    break
                 continue
+            finally:
+                # Memory cleanup after each text
+                if 'input_embeddings' in locals():
+                    del input_embeddings
+                if 'baseline_embeddings' in locals():
+                    del baseline_embeddings
+                if 'attributions' in locals():
+                    del attributions
+                if device.type == 'cuda':
+                    torch.cuda.empty_cache()
                 
         return results
+        
+    def compute_feature_attribution_gpu(self, texts_batch: List[str], method: str, gpu_id: int) -> List[Dict]:
+        """
+        Compute feature attribution for a batch of texts on a specific GPU
+        """
+        # Use only GPU 0 to avoid device placement issues
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        
+        # Ensure model is on the correct device
+        attribution_model = self.attribution_model.to(device)
+        tokenizer = self.tokenizer
+        input_embeddings = self.input_embeddings.to(device)
+        
+        results = []
+        
+        print(f"GPU {gpu_id}: Processing {len(texts_batch)} texts...")
+        
+        for i, text in enumerate(texts_batch):
+            if pd.isna(text) or not isinstance(text, str):
+                continue
+                
+            try:
+                # Tokenize text with full sequence length for comprehensive analysis
+                inputs = tokenizer(text, return_tensors='pt', truncation=True, 
+                                  padding=True, max_length=512)
+                input_ids = inputs['input_ids'].long().to(device)
+                attention_mask = inputs['attention_mask'].long().to(device) if 'attention_mask' in inputs else None
+                
+                # Get baseline (all pad tokens, properly typed)
+                baseline_ids = torch.zeros_like(input_ids, dtype=torch.long).to(device)
+                if attention_mask is not None:
+                    baseline_mask = torch.zeros_like(attention_mask, dtype=torch.long).to(device)
+                else:
+                    baseline_mask = None
+                
+                # Convert to embeddings for attribution
+                text_embeddings = input_embeddings(input_ids)
+                baseline_embeddings = input_embeddings(baseline_ids)
+                
+                # Create a wrapper nn.Module for Captum
+                class EmbeddingForwardModule(nn.Module):
+                    def __init__(self, model):
+                        super().__init__()
+                        self.model = model
+                        
+                    def forward(self, embeddings, attention_mask=None):
+                        if attention_mask is not None:
+                            outputs = self.model(inputs_embeds=embeddings, attention_mask=attention_mask)
+                        else:
+                            outputs = self.model(inputs_embeds=embeddings)
+                        return outputs.logits
+
+                embedding_forward_module = EmbeddingForwardModule(attribution_model)
+                
+                # Compute attribution based on method
+                if method == 'integrated_gradients':
+                    ig_embeddings = IntegratedGradients(embedding_forward_module)
+                    if attention_mask is not None:
+                        attributions = ig_embeddings.attribute(
+                            text_embeddings, 
+                            baselines=baseline_embeddings,
+                            target=1,
+                            additional_forward_args=(attention_mask,),
+                            internal_batch_size=4,  # Larger batch for GPU efficiency
+                            n_steps=50,
+                            return_convergence_delta=False
+                        )
+                    else:
+                        attributions = ig_embeddings.attribute(
+                            text_embeddings, 
+                            baselines=baseline_embeddings,
+                            target=1,
+                            internal_batch_size=4,
+                            n_steps=50,
+                            return_convergence_delta=False
+                        )
+                elif method == 'deeplift':
+                    dl = DeepLift(embedding_forward_module)
+                    if attention_mask is not None:
+                        attributions = dl.attribute(
+                            text_embeddings, 
+                            baselines=baseline_embeddings,
+                            target=1,
+                            additional_forward_args=(attention_mask,)
+                        )
+                    else:
+                        attributions = dl.attribute(
+                            text_embeddings, 
+                            baselines=baseline_embeddings,
+                            target=1
+                        )
+                else:
+                    print(f"Unknown attribution method: {method}")
+                    continue
+                
+                # Convert to token-level attributions
+                tokens = tokenizer.convert_ids_to_tokens(input_ids[0])
+                attr_scores = attributions[0].sum(dim=-1).detach().cpu().numpy()
+                
+                # Remove special tokens and aggregate subwords
+                clean_tokens = []
+                clean_attributions = []
+                current_word = ""
+                current_attr = 0.0
+                
+                for token, attr in zip(tokens, attr_scores):
+                    if token in ['[CLS]', '[SEP]', '[PAD]']:
+                        continue
+                        
+                    if token.startswith('##'):
+                        current_word += token[2:]
+                        current_attr += attr
+                    else:
+                        if current_word:
+                            clean_tokens.append(current_word)
+                            clean_attributions.append(current_attr)
+                        current_word = token
+                        current_attr = attr
+                        
+                if current_word:
+                    clean_tokens.append(current_word)
+                    clean_attributions.append(current_attr)
+                
+                # Identify language for each token
+                _, token_languages = self.detect_token_language(' '.join(clean_tokens))
+                
+                result = {
+                    'text': text,
+                    'index': i,
+                    'method': method,
+                    'gpu_id': gpu_id,
+                    'tokens': clean_tokens,
+                    'attributions': clean_attributions,
+                    'token_languages': token_languages,
+                    'total_attribution': sum(clean_attributions)
+                }
+                
+                results.append(result)
+                
+            except Exception as e:
+                print(f"GPU {gpu_id}: Error processing text {i}: {e}")
+                continue
+            finally:
+                # Memory cleanup
+                if 'text_embeddings' in locals():
+                    del text_embeddings
+                if 'baseline_embeddings' in locals():
+                    del baseline_embeddings
+                if 'attributions' in locals():
+                    del attributions
+                torch.cuda.empty_cache()
+                
+        return results
+        
+    def compute_feature_attribution_multi_gpu(self, texts: List[str], method: str) -> List[Dict]:
+        """
+        Compute feature attribution using single GPU to avoid device placement issues
+        """
+        print(f"Computing feature attribution for {len(texts)} texts using {method}...")
+        print("Note: Using single GPU approach to avoid device placement issues")
+        
+        # Use single GPU processing to avoid device conflicts
+        return self.compute_feature_attribution(texts, method)
         
     def analyze_attribution_by_language(self, attribution_results: List[Dict]) -> Dict:
         """
@@ -764,23 +1234,17 @@ class LinguisticToxicityAnalyzer:
             print("No high-toxicity texts found. Skipping attribution analysis.")
             return {}
             
-        # Limit analysis to manageable number of texts
-        if len(high_toxicity_texts) > 100:
-            print(f"Limiting analysis to 100 most toxic texts (from {len(high_toxicity_texts)} total)")
-            # Sort by toxicity score if available, otherwise take random sample
-            high_toxicity_texts = high_toxicity_texts[:100]
-            
         # Extract texts for attribution
         texts_for_attribution = [item['text'] for item in high_toxicity_texts]
         
-        # Compute attributions using different methods
+        # Compute attributions using different methods for comprehensive analysis
         attribution_results = []
         
-        methods = ['integrated_gradients', 'deeplift']  # Skip gradient_shap for speed
+        methods = ['integrated_gradients', 'deeplift']  # Use both IG and DeepLift for comprehensive analysis
         
         for method in methods:
             print(f"Computing attributions using {method}...")
-            method_results = self.compute_feature_attribution(texts_for_attribution, method)
+            method_results = self.compute_feature_attribution_multi_gpu(texts_for_attribution, method)
             attribution_results.extend(method_results)
             
         # Analyze results by language
@@ -824,14 +1288,16 @@ class LinguisticToxicityAnalyzer:
         
         # Box plot of Hindi percentage by text type
         sns.boxplot(data=segment_df, x='text_type', y='hindi_percentage', ax=axes[0,0])
-        axes[0,0].set_title('Hindi Percentage Distribution by Text Type')
-        axes[0,0].set_ylabel('Hindi Percentage (%)')
+        apply_smart_font_to_plot(axes[0,0], 
+                               title='Hindi Percentage Distribution by Text Type',
+                               ylabel='Hindi Percentage (%)')
         axes[0,0].tick_params(axis='x', rotation=45)
         
         # Box plot of English percentage by text type
         sns.boxplot(data=segment_df, x='text_type', y='english_percentage', ax=axes[0,1])
-        axes[0,1].set_title('English Percentage Distribution by Text Type')
-        axes[0,1].set_ylabel('English Percentage (%)')
+        apply_smart_font_to_plot(axes[0,1],
+                               title='English Percentage Distribution by Text Type',
+                               ylabel='English Percentage (%)')
         axes[0,1].tick_params(axis='x', rotation=45)
         
         # Scatter plot: Hindi vs English percentage
@@ -839,9 +1305,10 @@ class LinguisticToxicityAnalyzer:
             data = segment_df[segment_df['text_type'] == text_type]
             axes[1,0].scatter(data['hindi_percentage'], data['english_percentage'], 
                             label=text_type, alpha=0.6, color=professional_colors[i % len(professional_colors)])
-        axes[1,0].set_xlabel('Hindi Percentage (%)')
-        axes[1,0].set_ylabel('English Percentage (%)')
-        axes[1,0].set_title('Language Mix Distribution')
+        apply_smart_font_to_plot(axes[1,0],
+                               title='Language Mix Distribution',
+                               xlabel='Hindi Percentage (%)',
+                               ylabel='English Percentage (%)')
         axes[1,0].legend()
         
         # Average toxicity by text type
@@ -854,8 +1321,9 @@ class LinguisticToxicityAnalyzer:
             text_types.append(text_type)
             
         axes[1,1].bar(text_types, toxicity_means, color=professional_colors[:len(text_types)])
-        axes[1,1].set_title('Average Toxicity by Text Type')
-        axes[1,1].set_ylabel('Average Toxicity Score')
+        apply_smart_font_to_plot(axes[1,1],
+                               title='Average Toxicity by Text Type',
+                               ylabel='Average Toxicity Score')
         axes[1,1].tick_params(axis='x', rotation=45)
         
         plt.tight_layout()
@@ -893,10 +1361,10 @@ class LinguisticToxicityAnalyzer:
                 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
                 
                 sns.heatmap(pivot_hindi, annot=True, cmap='RdBu_r', center=0, ax=ax1)
-                ax1.set_title('Hindi Percentage vs Toxicity Correlations')
+                apply_smart_font_to_plot(ax1, title='Hindi Percentage vs Toxicity Correlations')
                 
                 sns.heatmap(pivot_english, annot=True, cmap='RdBu_r', center=0, ax=ax2)
-                ax2.set_title('English Percentage vs Toxicity Correlations')
+                apply_smart_font_to_plot(ax2, title='English Percentage vs Toxicity Correlations')
                 
                 plt.tight_layout()
                 plt.savefig(os.path.join(self.output_dir, 'language_toxicity_correlations.png'), 
@@ -942,8 +1410,9 @@ class LinguisticToxicityAnalyzer:
                                             columns='Dimension', 
                                             values='Hindi Correlation')
             hindi_pivot.plot(kind='bar', ax=ax1, color=professional_colors)
-            ax1.set_title('LLM Continuation Toxicity vs Hindi Percentage Correlations')
-            ax1.set_ylabel('Correlation Coefficient')
+            apply_smart_font_to_plot(ax1,
+                                   title='LLM Continuation Toxicity vs Hindi Percentage Correlations',
+                                   ylabel='Correlation Coefficient')
             ax1.legend(title='Toxicity Dimension', bbox_to_anchor=(1.05, 1), loc='upper left')
             ax1.tick_params(axis='x', rotation=45)
             
@@ -990,15 +1459,17 @@ class LinguisticToxicityAnalyzer:
             
             axes[i,0].bar(languages, means, yerr=stds, capsize=5, 
                          color=professional_colors[:2])
-            axes[i,0].set_title(f'Mean Attribution by Language ({method})')
-            axes[i,0].set_ylabel('Mean Attribution Score')
+            apply_smart_font_to_plot(axes[i,0],
+                                   title=f'Mean Attribution by Language ({method})',
+                                   ylabel='Mean Attribution Score')
             
             # Token count comparison
             token_counts = [stats['hindi_stats']['total_tokens'], 
                            stats['english_stats']['total_tokens']]
             axes[i,1].bar(languages, token_counts, color=professional_colors[:2])
-            axes[i,1].set_title(f'Token Count by Language ({method})')
-            axes[i,1].set_ylabel('Number of Tokens')
+            apply_smart_font_to_plot(axes[i,1],
+                                   title=f'Token Count by Language ({method})',
+                                   ylabel='Number of Tokens')
             
         plt.tight_layout()
         plt.savefig(os.path.join(self.output_dir, 'attribution_by_language.png'), 
@@ -1016,23 +1487,35 @@ class LinguisticToxicityAnalyzer:
                 if 'hindi' in top_tokens and top_tokens['hindi']:
                     hindi_tokens = top_tokens['hindi'][:10]  # Top 10
                     tokens, scores = zip(*hindi_tokens)
-                    ax1.barh(range(len(tokens)), [abs(s) for s in scores], 
-                            color=professional_colors[0])
+                    
+                    # Create bars
+                    bars = ax1.barh(range(len(tokens)), [abs(s) for s in scores], 
+                                   color=professional_colors[0])
                     ax1.set_yticks(range(len(tokens)))
-                    ax1.set_yticklabels(tokens)
-                    ax1.set_title(f'Top Hindi Tokens by Attribution ({method})')
-                    ax1.set_xlabel('Absolute Attribution Score')
+                    
+                    # Handle Hindi text rendering with proper encoding
+                    clean_tokens = safe_text_render(tokens)
+                    ax1.set_yticklabels(clean_tokens, fontsize=10)
+                    
+                    apply_smart_font_to_plot(ax1,
+                                           title=f'Top Hindi Tokens by Attribution ({method})',
+                                           xlabel='Absolute Attribution Score')
+                    ax1.invert_yaxis()  # Show highest scores at top
                     
                 # English top tokens
                 if 'english' in top_tokens and top_tokens['english']:
                     english_tokens = top_tokens['english'][:10]  # Top 10
                     tokens, scores = zip(*english_tokens)
-                    ax2.barh(range(len(tokens)), [abs(s) for s in scores], 
-                            color=professional_colors[1])
+                    
+                    bars = ax2.barh(range(len(tokens)), [abs(s) for s in scores], 
+                                   color=professional_colors[1])
                     ax2.set_yticks(range(len(tokens)))
-                    ax2.set_yticklabels(tokens)
-                    ax2.set_title(f'Top English Tokens by Attribution ({method})')
-                    ax2.set_xlabel('Absolute Attribution Score')
+                    clean_tokens = safe_text_render(tokens)
+                    ax2.set_yticklabels(clean_tokens, fontsize=10)
+                    apply_smart_font_to_plot(ax2,
+                                           title=f'Top English Tokens by Attribution ({method})',
+                                           xlabel='Absolute Attribution Score')
+                    ax2.invert_yaxis()  # Show highest scores at top
                     
                 plt.tight_layout()
                 plt.savefig(os.path.join(self.output_dir, f'top_tokens_{method}.png'), 
@@ -1214,7 +1697,183 @@ class LinguisticToxicityAnalyzer:
         for file in sorted(os.listdir(self.output_dir)):
             print(f"  - {file}")
             
+        # Cleanup temporary font file if it was downloaded
+        global FONT_PATH
+        if FONT_PATH and os.path.exists(FONT_PATH):
+            try:
+                import tempfile
+                import shutil
+                # Remove the temporary directory
+                temp_dir = os.path.dirname(FONT_PATH)
+                if temp_dir.startswith(tempfile.gettempdir()):
+                    shutil.rmtree(temp_dir)
+                    print("Cleaned up temporary font files")
+            except Exception as e:
+                print(f"Warning: Could not clean up temporary font file: {e}")
+            
         return True 
+
+def process_batch(batch, model, tokenizer, device, batch_size=32):
+    """Process a batch of texts for feature attribution"""
+    results = []
+    
+    # Tokenize batch
+    inputs = tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    
+    # Get model outputs
+    with torch.no_grad():
+        outputs = model(**inputs)
+        logits = outputs.logits
+        probs = torch.softmax(logits, dim=-1)
+        toxicity_scores = probs[:, 1].cpu().numpy()
+    
+    # Process each sample in the batch
+    for i, (text, score) in enumerate(zip(batch, toxicity_scores)):
+        try:
+            # Get feature attributions for this sample
+            attributions = get_feature_attributions(text, model, tokenizer, device)
+            
+            # Get linguistic features
+            features = get_linguistic_features(text)
+            
+            results.append({
+                'text': text,
+                'toxicity_score': float(score),
+                'attributions': attributions,
+                'linguistic_features': features
+            })
+            
+        except Exception as e:
+            print(f"Error processing sample {i}: {str(e)}")
+            continue
+    
+    return results
+
+def get_feature_attributions(text, model, tokenizer, device, batch_size=32):
+    """Get feature attributions for a text using batched processing"""
+    # Tokenize input
+    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=512)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    
+    # Get base prediction
+    with torch.no_grad():
+        outputs = model(**inputs)
+        base_logits = outputs.logits
+        base_probs = torch.softmax(base_logits, dim=-1)
+        base_score = base_probs[0, 1].item()
+    
+    # Get token attributions
+    token_attributions = []
+    input_ids = inputs['input_ids'][0]
+    
+    # Process tokens in batches
+    for i in range(0, len(input_ids), batch_size):
+        batch_tokens = input_ids[i:i + batch_size]
+        batch_attributions = []
+        
+        for token_id in batch_tokens:
+            # Create masked input
+            masked_inputs = inputs.copy()
+            masked_inputs['input_ids'][0, i] = tokenizer.pad_token_id
+            
+            # Get prediction with masked token
+            with torch.no_grad():
+                masked_outputs = model(**masked_inputs)
+                masked_logits = masked_outputs.logits
+                masked_probs = torch.softmax(masked_logits, dim=-1)
+                masked_score = masked_probs[0, 1].item()
+            
+            # Calculate attribution
+            attribution = base_score - masked_score
+            batch_attributions.append(attribution)
+        
+        token_attributions.extend(batch_attributions)
+    
+    # Convert to dictionary
+    tokens = tokenizer.convert_ids_to_tokens(input_ids)
+    return {token: float(attr) for token, attr in zip(tokens, token_attributions)}
+
+def process_batch_multi_gpu(texts, model, tokenizer, device, batch_size):
+    """Process a batch of texts using multiple GPUs"""
+    results = []
+    num_gpus = torch.cuda.device_count()
+    
+    # Split texts across GPUs
+    texts_per_gpu = len(texts) // num_gpus
+    gpu_texts = [texts[i:i + texts_per_gpu] for i in range(0, len(texts), texts_per_gpu)]
+    
+    # Process each GPU's batch
+    for gpu_id, gpu_batch in enumerate(gpu_texts):
+        try:
+            # Set current device
+            torch.cuda.set_device(gpu_id)
+            current_device = torch.device(f'cuda:{gpu_id}')
+            
+            # Move model to current device
+            model = model.to(current_device)
+            
+            # Process batch
+            for text in gpu_batch:
+                try:
+                    # Tokenize and move to current device
+                    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True)
+                    inputs = {k: v.to(current_device) for k, v in inputs.items()}
+                    
+                    # Get attributions
+                    attributions = compute_attributions(model, inputs, current_device)
+                    results.append({
+                        'text': text,
+                        'attributions': attributions
+                    })
+                except Exception as e:
+                    print(f"GPU {gpu_id}: Error processing text: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            print(f"GPU {gpu_id} failed with error: {str(e)}")
+            continue
+            
+    return results
+
+def compute_attributions(model, inputs, device):
+    """Compute attributions for a single input"""
+    # Ensure model and inputs are on the same device
+    model = model.to(device)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    
+    # Get model predictions
+    with torch.no_grad():
+        outputs = model(**inputs)
+        predictions = outputs.logits
+    
+    # Compute attributions using integrated gradients
+    attributions = []
+    for i in range(predictions.shape[1]):
+        # Create baseline
+        baseline = torch.zeros_like(inputs['input_ids'])
+        
+        # Compute integrated gradients
+        steps = 50
+        scaled_inputs = []
+        for step in range(steps + 1):
+            alpha = step / steps
+            scaled_input = baseline + alpha * (inputs['input_ids'] - baseline)
+            scaled_inputs.append(scaled_input)
+        
+        # Stack scaled inputs
+        scaled_inputs = torch.cat(scaled_inputs, dim=0)
+        
+        # Get gradients
+        scaled_inputs.requires_grad_(True)
+        outputs = model(input_ids=scaled_inputs, attention_mask=inputs['attention_mask'].repeat(steps + 1, 1))
+        predictions = outputs.logits[:, i]
+        gradients = torch.autograd.grad(predictions.sum(), scaled_inputs)[0]
+        
+        # Compute attributions
+        attributions.append((gradients * (inputs['input_ids'] - baseline)).sum(dim=0))
+    
+    return torch.stack(attributions).cpu().numpy()
 
 def main():
     """Main function to run the linguistic distribution and feature attribution analysis"""
@@ -1271,6 +1930,12 @@ Output files will be saved to final_outputs/experiment_e/
         help='Skip feature attribution analysis (useful if HuggingFace models are not accessible)'
     )
     
+    parser.add_argument(
+        '--multi_gpu',
+        action='store_true',
+        help='Use multiple GPUs for parallel attribution analysis (requires 4 GPUs)'
+    )
+    
     args = parser.parse_args()
     
     # Validate input files
@@ -1290,7 +1955,8 @@ Output files will be saved to final_outputs/experiment_e/
     analyzer = LinguisticToxicityAnalyzer(
         input_file=args.input_file,
         output_dir=args.output_dir,
-        fasttext_model=args.fasttext_model
+        fasttext_model=args.fasttext_model,
+        multi_gpu=args.multi_gpu
     )
     
     # Set skip attribution flag if specified

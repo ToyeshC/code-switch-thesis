@@ -36,3 +36,7 @@ temp_scripts/token.pickle
 final_data/
 final_outputs/
 final_job_outputs/
+
+=2.6.0
+temp_outputs/
+temp_scripts/perspective_analysis_form.csv

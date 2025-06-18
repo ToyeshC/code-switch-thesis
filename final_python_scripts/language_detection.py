@@ -156,26 +156,26 @@ def main():
                 # Get prediction and convert to string safely
                 labels, scores = model.predict(word, k=1)
                 lang = labels[0].replace('__label__', '')
-                
-                # Count words by language
-                if lang == 'hi':
-                    hindi_count += 1
-                # Only count as English if it's in the English dictionary or very likely English
-                elif lang == 'en' and (word_lower in english_words or len(word) > 3):
-                    english_count += 1
-                # Words not clearly identified might be Romanized Hindi
-                elif len(word) > 2:  # Ignore very short words
-                    # Check if it follows Hindi word patterns (e.g., ending with common suffixes)
-                    if (word_lower.endswith(('na', 'ne', 'ni', 'ta', 'ti', 'te', 'ya', 'ye', 'yi', 
-                                            'kar', 'wala', 'wali', 'gaya', 'gayi', 'raha', 'rahi')) or
-                        any(pattern in word_lower for pattern in ('aa', 'ee', 'oo', 'kh', 'gh', 'ch', 'jh', 'th'))):
-                        romanized_hindi_count += 1
-                    else:
+            
+            # Count words by language
+            if lang == 'hi':
+                hindi_count += 1
+            # Only count as English if it's in the English dictionary or very likely English
+            elif lang == 'en' and (word_lower in english_words or len(word) > 3):
+                english_count += 1
+            # Words not clearly identified might be Romanized Hindi
+            elif len(word) > 2:  # Ignore very short words
+                # Check if it follows Hindi word patterns (e.g., ending with common suffixes)
+                if (word_lower.endswith(('na', 'ne', 'ni', 'ta', 'ti', 'te', 'ya', 'ye', 'yi', 
+                                        'kar', 'wala', 'wali', 'gaya', 'gayi', 'raha', 'rahi')) or
+                    any(pattern in word_lower for pattern in ('aa', 'ee', 'oo', 'kh', 'gh', 'ch', 'jh', 'th'))):
+                    romanized_hindi_count += 1
+                else:
                         english_count += 1
             except Exception as e:
                 print(f"Error processing word '{word}': {e}")
                 # Default to English for words that cause errors
-                english_count += 1
+                    english_count += 1
             
         return hindi_count, english_count, romanized_hindi_count
     

@@ -16,24 +16,24 @@ def setup_model_and_tokenizer(model_name, token):
     """Loads the model and tokenizer from Hugging Face."""
     print(f"\nLoading model: {model_name}")
     tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
         torch_dtype=torch.bfloat16,
-        device_map="auto",
+                    device_map="auto",
         token=token
     )
     
     # Set pad token and padding side for batched generation
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
         model.config.pad_token_id = model.config.eos_token_id
     
     # Left-padding is required for batched generation
     tokenizer.padding_side = "left"
-
+            
     set_seed(42)
-    return model, tokenizer
-
+        return model, tokenizer
+        
 def generate_continuations_batch(model, tokenizer, texts, max_tokens, temperature):
     """Generates continuations for a batch of texts using the appropriate chat template."""
     
@@ -44,10 +44,10 @@ def generate_continuations_batch(model, tokenizer, texts, max_tokens, temperatur
     input_ids = tokenizer.apply_chat_template(
         messages_batch,
         add_generation_prompt=True,
-        return_tensors="pt",
-        padding=True
-    ).to(model.device)
-    
+            return_tensors="pt", 
+            padding=True
+        ).to(model.device)
+        
     # Define a list of terminators to stop generation.
     # This handles model-specific end-of-sentence tokens.
     terminators = []
@@ -56,16 +56,16 @@ def generate_continuations_batch(model, tokenizer, texts, max_tokens, temperatur
     if "Meta-Llama-3" in model.config.name_or_path:
         terminators.append(tokenizer.convert_tokens_to_ids("<|eot_id|>"))
 
-    outputs = model.generate(
+            outputs = model.generate(
         input_ids,
-        max_new_tokens=max_tokens,
+                max_new_tokens=max_tokens,
         eos_token_id=terminators,
         do_sample=True,
-        temperature=temperature,
-        top_p=0.9,
+                temperature=temperature,
+                top_p=0.9,
         pad_token_id=tokenizer.pad_token_id
-    )
-    
+            )
+        
     # Decode only the newly generated tokens, skipping the prompt
     responses = [tokenizer.decode(out[len(in_ids):], skip_special_tokens=True) for in_ids, out in zip(input_ids, outputs)]
     return responses
@@ -84,8 +84,8 @@ def main(args):
         for column_name in columns_to_process:
             if column_name not in df.columns:
                 print(f"Warning: Column '{column_name}' not found in input file. Skipping.")
-                continue
-
+            continue
+        
             new_column_name = f"{model_short_name}_{column_name}_continuation"
             print(f"\nProcessing: Model '{model_short_name}' on column '{column_name}' -> new column '{new_column_name}'")
 
@@ -119,10 +119,10 @@ def main(args):
             df[new_column_name] = all_continuations
 
         # Clear memory after processing a model
-        del model
-        del tokenizer
-        torch.cuda.empty_cache()
-
+    del model
+    del tokenizer
+    torch.cuda.empty_cache()
+    
     print(f"\nSaving all continuations to: {args.output}")
     df.to_csv(args.output, index=False)
     print("Script finished successfully.")
